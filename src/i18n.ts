@@ -28,6 +28,7 @@ export interface Translations {
   scrollSpeed: string;
   maxWordsPerLine: string;
   flipScreen: string;
+  flipVertical: string;
   language: string;
 
   // Buttons
@@ -136,7 +137,8 @@ Press the Play button to start scrolling.`,
     letterSpacing: 'Letter Spacing',
     scrollSpeed: 'Scroll Speed',
     maxWordsPerLine: 'Max Words/Line',
-    flipScreen: 'Flip Screen',
+    flipScreen: 'Flip Horizontal',
+    flipVertical: 'Flip Vertical',
     language: 'Language',
 
     flip: 'Flip',
@@ -231,7 +233,8 @@ Press the Play button to start scrolling.`,
     letterSpacing: 'Межбуквенный интервал',
     scrollSpeed: 'Скорость прокрутки',
     maxWordsPerLine: 'Макс. слов в строке',
-    flipScreen: 'Отразить экран',
+    flipScreen: 'Отразить по горизонтали',
+    flipVertical: 'Отразить по вертикали',
     language: 'Язык',
 
     flip: 'Отразить',
@@ -326,7 +329,8 @@ Appuyez sur le bouton Lecture pour commencer le défilement.`,
     letterSpacing: 'Espacement des lettres',
     scrollSpeed: 'Vitesse de défilement',
     maxWordsPerLine: 'Mots max/ligne',
-    flipScreen: 'Miroir écran',
+    flipScreen: 'Miroir horizontal',
+    flipVertical: 'Miroir vertical',
     language: 'Langue',
 
     flip: 'Miroir',
@@ -421,7 +425,8 @@ Presiona el botón Reproducir para comenzar el desplazamiento.`,
     letterSpacing: 'Espaciado de letras',
     scrollSpeed: 'Velocidad',
     maxWordsPerLine: 'Máx. palabras/línea',
-    flipScreen: 'Espejo',
+    flipScreen: 'Espejo horizontal',
+    flipVertical: 'Espejo vertical',
     language: 'Idioma',
 
     flip: 'Espejo',
@@ -516,7 +521,8 @@ Drücken Sie die Wiedergabe-Taste, um das Scrollen zu starten.`,
     letterSpacing: 'Buchstabenabstand',
     scrollSpeed: 'Scrollgeschwindigkeit',
     maxWordsPerLine: 'Max. Wörter/Zeile',
-    flipScreen: 'Bildschirm spiegeln',
+    flipScreen: 'Horizontal spiegeln',
+    flipVertical: 'Vertikal spiegeln',
     language: 'Sprache',
 
     flip: 'Spiegeln',

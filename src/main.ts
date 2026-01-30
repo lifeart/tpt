@@ -90,6 +90,7 @@ class TeleprompterState {
   letterSpacing: number;
   scrollSpeed: number; // Now represents lines per second
   isFlipped: boolean;
+  isFlippedVertical: boolean;
   isScrolling: boolean;
   activeLineIndex: number;
   scriptEnded: boolean;
@@ -110,6 +111,7 @@ class TeleprompterState {
     this.letterSpacing = CONFIG.LETTER_SPACING.DEFAULT;
     this.scrollSpeed = CONFIG.SCROLL_SPEED.DEFAULT;
     this.isFlipped = false;
+    this.isFlippedVertical = false;
     this.isScrolling = false;
     this.activeLineIndex = 0;
     this.scriptEnded = false;
@@ -608,8 +610,9 @@ class TeleprompterDisplay {
   private applyTransform() {
     if (!this.telepromptTextInner) return;
     const translatePart = `translateY(${this.currentTranslateY}px)`;
-    const flipPart = this.state.isFlipped ? " scaleX(-1)" : "";
-    this.telepromptTextInner.style.transform = translatePart + flipPart;
+    const flipX = this.state.isFlipped ? " scaleX(-1)" : "";
+    const flipY = this.state.isFlippedVertical ? " scaleY(-1)" : "";
+    this.telepromptTextInner.style.transform = translatePart + flipX + flipY;
   }
 
   updateStyles() {
@@ -1176,6 +1179,30 @@ class SettingsDrawer {
     flipRow.appendChild(flipLabel);
     flipRow.appendChild(flipBtn);
     flipGroup.appendChild(flipRow);
+
+    // Vertical flip row
+    const flipVerticalRow = document.createElement("div");
+    flipVerticalRow.className = "settings-row";
+    flipVerticalRow.style.justifyContent = "space-between";
+
+    const flipVerticalLabel = document.createElement("label");
+    flipVerticalLabel.className = "settings-label";
+    flipVerticalLabel.style.marginBottom = "0";
+    flipVerticalLabel.textContent = i18n.t('flipVertical');
+
+    const flipVerticalBtn = document.createElement("button");
+    flipVerticalBtn.className = "toolbar-btn toolbar-btn-edit";
+    flipVerticalBtn.textContent = this.state.isFlippedVertical ? i18n.t('unflip') : i18n.t('flip');
+    flipVerticalBtn.addEventListener("click", () => {
+      this.state.isFlippedVertical = !this.state.isFlippedVertical;
+      flipVerticalBtn.textContent = this.state.isFlippedVertical ? i18n.t('unflip') : i18n.t('flip');
+      this.onStateChange();
+    });
+
+    flipVerticalRow.appendChild(flipVerticalLabel);
+    flipVerticalRow.appendChild(flipVerticalBtn);
+    flipGroup.appendChild(flipVerticalRow);
+
     panel.appendChild(flipGroup);
   }
 
