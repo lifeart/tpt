@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <defs>
+    <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#3b82f6;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#1d4ed8;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  <!-- Background circle -->
+  <circle cx="50" cy="50" r="48" fill="url(#grad)"/>
+  <!-- Teleprompter screen shape -->
+  <rect x="20" y="25" width="60" height="50" rx="4" fill="#1e293b"/>
+  <!-- Screen inner glow -->
+  <rect x="24" y="29" width="52" height="42" rx="2" fill="#0f172a"/>
+  <!-- Text lines representing scrolling text -->
+  <rect x="30" y="35" width="40" height="4" rx="1" fill="#64748b" opacity="0.5"/>
+  <rect x="30" y="43" width="40" height="4" rx="1" fill="#94a3b8" opacity="0.7"/>
+  <rect x="30" y="51" width="40" height="5" rx="1" fill="#fbbf24"/>
+  <rect x="30" y="60" width="40" height="4" rx="1" fill="#94a3b8" opacity="0.7"/>
+  <!-- Arrow indicators -->
+  <polygon points="18,53 24,50 24,56" fill="#fbbf24"/>
+  <polygon points="82,53 76,50 76,56" fill="#fbbf24"/>
+  <!-- Stand -->
+  <rect x="40" y="75" width="20" height="4" rx="1" fill="#475569"/>
+  <rect x="35" y="79" width="30" height="3" rx="1" fill="#334155"/>
+</svg>

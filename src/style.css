@@ -46,8 +46,13 @@ body {
   scroll-behavior: smooth;
   padding: 2rem;
   box-sizing: border-box;
-  will-change: transform, scroll-position; /* Hardware acceleration hint for scrolling */
+  will-change: transform; /* Hardware acceleration hint */
   transform: translateZ(0); /* Force hardware acceleration */
+}
+
+/* Inner text wrapper for transforms */
+.teleprompt-text-inner {
+  will-change: transform;
 }
 
 /* Active line highlight - optimized selector */
@@ -82,38 +87,25 @@ body {
   right: -2em;
 }
 
-/* Arrow markers */
-#active-line-marker {
+/* Countdown overlay */
+.countdown-overlay {
   position: absolute;
-  left: 0;
-  width: 100%;
-  pointer-events: none;
-  display: flex;
-  justify-content: space-between;
+  inset: 0;
+  display: none;
   align-items: center;
-  will-change: transform, top, height; /* Hardware acceleration hint */
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.8);
+  z-index: 100;
+  font-size: 8rem;
+  font-weight: bold;
+  color: #ffff00;
+  font-family: system-ui, sans-serif;
+  user-select: none;
+  pointer-events: none;
 }
 
-.arrow {
-  color: yellow;
-  font-size: 1.5em;
-  position: absolute;
-  top: 50%;
-  transform: translateY(-50%);
-}
-
-.left-arrow {
-  left: 10px;
-}
-
-.right-arrow {
-  right: 10px;
-}
-
-/* Flipping styles - optimized for performance */
-.flipped #teleprompt-text {
-  transform: scale(-1, 1) translateZ(0); /* Combined with hardware acceleration */
-}
+/* Flipping styles - handled by JS on .teleprompt-text-inner */
+/* The flip transform is applied dynamically via applyTransform() */
 
 /* Controls panel */
 .controls-panel {
@@ -160,4 +152,209 @@ button {
 
 .teleprompter-hide-scrollbar::-webkit-scrollbar {
   display: none; /* Chrome/Safari/Webkit */
+}
+
+/* Help Modal */
+.help-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.8);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 1rem;
+  backdrop-filter: blur(4px);
+}
+
+.help-modal-overlay.visible {
+  display: flex;
+}
+
+.help-modal {
+  background: #1e293b;
+  border-radius: 12px;
+  max-width: 600px;
+  max-height: 80vh;
+  width: 100%;
+  overflow: hidden;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+  animation: modalSlideIn 0.2s ease-out;
+}
+
+@keyframes modalSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-20px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.help-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1.5rem;
+  border-bottom: 1px solid #334155;
+  background: #0f172a;
+}
+
+.help-modal-header h2 {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #f1f5f9;
+}
+
+.help-modal-close {
+  background: none;
+  border: none;
+  color: #94a3b8;
+  font-size: 1.5rem;
+  cursor: pointer;
+  padding: 0.25rem;
+  line-height: 1;
+  border-radius: 4px;
+  transition: color 0.15s, background 0.15s;
+}
+
+.help-modal-close:hover {
+  color: #f1f5f9;
+  background: #334155;
+}
+
+.help-modal-content {
+  padding: 1.5rem;
+  overflow-y: auto;
+  max-height: calc(80vh - 60px);
+  color: #cbd5e1;
+}
+
+.help-section {
+  margin-bottom: 1.5rem;
+}
+
+.help-section:last-child {
+  margin-bottom: 0;
+}
+
+.help-section h3 {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #3b82f6;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin: 0 0 0.75rem 0;
+}
+
+.shortcut-list {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.shortcut-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid #334155;
+}
+
+.shortcut-item:last-child {
+  border-bottom: none;
+}
+
+.shortcut-keys {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.key {
+  background: #334155;
+  color: #e2e8f0;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-family: ui-monospace, monospace;
+  font-size: 0.75rem;
+  font-weight: 500;
+  border: 1px solid #475569;
+}
+
+.shortcut-desc {
+  color: #94a3b8;
+  font-size: 0.875rem;
+}
+
+.feature-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.feature-list li {
+  padding: 0.5rem 0;
+  padding-left: 1.5rem;
+  position: relative;
+  border-bottom: 1px solid #334155;
+}
+
+.feature-list li:last-child {
+  border-bottom: none;
+}
+
+.feature-list li::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 6px;
+  height: 6px;
+  background: #3b82f6;
+  border-radius: 50%;
+}
+
+.help-footer {
+  padding: 1rem 1.5rem;
+  border-top: 1px solid #334155;
+  background: #0f172a;
+  text-align: center;
+  font-size: 0.75rem;
+  color: #64748b;
+}
+
+.help-footer a {
+  color: #3b82f6;
+  text-decoration: none;
+}
+
+.help-footer a:hover {
+  text-decoration: underline;
+}
+
+/* Help button in controls */
+.help-btn {
+  position: absolute;
+  bottom: 4px;
+  left: 4px;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #475569;
+  border: none;
+  color: #e2e8f0;
+  font-size: 1rem;
+  font-weight: bold;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s;
+}
+
+.help-btn:hover {
+  background: #3b82f6;
 }

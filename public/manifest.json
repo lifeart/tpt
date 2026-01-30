@@ -1,0 +1,57 @@
+{
+  "name": "Free Online Teleprompter",
+  "short_name": "Teleprompter",
+  "description": "Professional teleprompter app for video creators. Customizable scroll speed, fonts, colors, and mirror mode.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#000000",
+  "theme_color": "#000000",
+  "orientation": "any",
+  "categories": ["productivity", "utilities"],
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/favicon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/favicon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/screenshot-wide.png",
+      "sizes": "1280x720",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "Teleprompter in fullscreen mode"
+    },
+    {
+      "src": "/screenshot-narrow.png",
+      "sizes": "390x844",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Teleprompter on mobile"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "New Script",
+      "short_name": "New",
+      "description": "Start with a new script",
+      "url": "/?new=true"
+    }
+  ],
+  "lang": "en",
+  "dir": "ltr"
+}
