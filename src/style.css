@@ -545,8 +545,9 @@ button {
   height: 22px;
 }
 
-/* Secondary buttons (Edit, Settings, etc.) */
+/* Secondary buttons (Edit, Restart, Settings, etc.) */
 .toolbar-btn-edit,
+.toolbar-btn-restart,
 .toolbar-btn-settings,
 .toolbar-btn-fullscreen,
 .toolbar-btn-help {
@@ -555,6 +556,7 @@ button {
 }
 
 .toolbar-btn-edit:hover,
+.toolbar-btn-restart:hover,
 .toolbar-btn-settings:hover,
 .toolbar-btn-fullscreen:hover,
 .toolbar-btn-help:hover {
@@ -1481,6 +1483,7 @@ button {
 @media (hover: none) {
   /* Reset all interactive hover states to their default backgrounds */
   .toolbar-btn-edit:hover,
+  .toolbar-btn-restart:hover,
   .toolbar-btn-settings:hover,
   .toolbar-btn-fullscreen:hover,
   .toolbar-btn-help:hover {

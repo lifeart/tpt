@@ -159,6 +159,7 @@ const editIcon = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fi
 const settingsIcon = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="20" height="20"><path d="M19.14 12.94c.04-.31.06-.63.06-.94 0-.31-.02-.63-.06-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.04.31-.06.63-.06.94s.02.63.06.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg>`;
 const helpIcon = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="20" height="20"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 17h-2v-2h2v2zm2.07-7.75l-.9.92C13.45 12.9 13 13.5 13 15h-2v-.5c0-1.1.45-2.1 1.17-2.83l1.24-1.26c.37-.36.59-.86.59-1.41 0-1.1-.9-2-2-2s-2 .9-2 2H8c0-2.21 1.79-4 4-4s4 1.79 4 4c0 .88-.36 1.68-.93 2.25z"/></svg>`;
 const closeIcon = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="20" height="20"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>`;
+const restartIcon = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="20" height="20"><path d="M12 5V1L7 6l5 5V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z"/></svg>`;
 
 // Teleprompter state class
 class TeleprompterState {
@@ -229,6 +230,10 @@ class TeleprompterDisplay {
   // Store event listeners for cleanup
   private keydownHandler: ((e: KeyboardEvent) => void) | null = null;
   private backToTopHandler: ((e: CustomEvent<void>) => void) | null = null;
+  private wheelHandler: ((e: WheelEvent) => void) | null = null;
+  // Smooth scroll animation state
+  private smoothScrollAnimationId: number | null = null;
+  private targetTranslateY: number = 0;
 
   constructor(container: HTMLElement, state: TeleprompterState) {
     this.state = state;
@@ -279,7 +284,40 @@ class TeleprompterDisplay {
 
     this.updateTelepromptText();
     this.setupKeyboardNavigation();
+    this.setupWheelNavigation();
     this.setupCustomEventListeners(); // Add setup for custom events
+  }
+
+  private setupWheelNavigation() {
+    this.wheelHandler = (e: WheelEvent) => {
+      // Only handle wheel when not scrolling (paused)
+      if (this.state.isScrolling) return;
+
+      // Prevent default to avoid page scroll
+      e.preventDefault();
+
+      if (!this.telepromptTextInner) return;
+
+      // Calculate scroll amount from wheel delta
+      const scrollAmount = e.deltaY;
+
+      // Update target translateY position
+      const containerRect = this.telepromptText.getBoundingClientRect();
+      const totalHeight = this.telepromptTextInner.scrollHeight;
+      const maxTranslateY = 0;
+      const minTranslateY = -(totalHeight - containerRect.height);
+
+      // Update target for smooth scrolling
+      this.targetTranslateY = Math.max(
+        minTranslateY,
+        Math.min(maxTranslateY, this.targetTranslateY - scrollAmount)
+      );
+
+      // Start smooth scroll animation
+      this.startSmoothScroll();
+    };
+
+    this.telepromptText.addEventListener("wheel", this.wheelHandler, { passive: false });
   }
 
   private setupKeyboardNavigation() {
@@ -370,14 +408,9 @@ class TeleprompterDisplay {
               this.state.activeLineIndex + 1
             );
           }
-          // Scroll to the active line
-          const targetLine = this.element.querySelector(
-            `.line[data-index="${this.state.activeLineIndex}"]`
-          ) as HTMLElement;
-          if (targetLine) {
-            targetLine.scrollIntoView({ behavior: "smooth", block: "center" });
-            this.updateTelepromptText();
-          }
+          // Scroll to the active line using transform-based scrolling
+          this.scrollToLine(this.state.activeLineIndex);
+          this.updateTelepromptText();
         }
         e.preventDefault();
         return;
@@ -396,6 +429,17 @@ class TeleprompterDisplay {
         // Space bar toggles play/pause
         this.toggleScrolling();
         e.preventDefault();
+        return;
+      }
+      // Home key: Go back to top/restart
+      // Don't trigger if typing in an input field
+      if (e.key === "Home") {
+        if (e.target instanceof HTMLTextAreaElement || e.target instanceof HTMLInputElement) {
+          return;
+        }
+        document.dispatchEvent(new CustomEvent("back-to-top"));
+        e.preventDefault();
+        return;
       }
     };
     document.addEventListener("keydown", this.keydownHandler);
@@ -411,13 +455,73 @@ class TeleprompterDisplay {
   }
 
   private jumpToLine(lineIndex: number) {
+    this.scrollToLine(lineIndex);
+    this.updateTelepromptText();
+  }
+
+  // Scroll to center a specific line using transform-based scrolling
+  private scrollToLine(lineIndex: number, smooth: boolean = true) {
     const targetLine = this.element.querySelector(
       `.line[data-index="${lineIndex}"]`
     ) as HTMLElement;
-    if (targetLine) {
-      targetLine.scrollIntoView({ behavior: "smooth", block: "center" });
-      this.updateTelepromptText();
+    if (!targetLine || !this.telepromptTextInner) return;
+
+    // Get the container's center position
+    const containerRect = this.telepromptText.getBoundingClientRect();
+    const containerCenter = containerRect.height / 2;
+
+    // Get the line's position relative to the inner container
+    const lineRect = targetLine.getBoundingClientRect();
+    const innerRect = this.telepromptTextInner.getBoundingClientRect();
+    const lineOffsetInContainer = lineRect.top - innerRect.top + lineRect.height / 2;
+
+    // Calculate translateY needed to center this line
+    const newTargetY = containerCenter - lineOffsetInContainer;
+
+    // Clamp to valid range
+    const maxTranslateY = 0;
+    const totalHeight = this.telepromptTextInner.scrollHeight;
+    const minTranslateY = -(totalHeight - containerRect.height);
+
+    this.targetTranslateY = Math.max(minTranslateY, Math.min(maxTranslateY, newTargetY));
+
+    if (smooth) {
+      this.startSmoothScroll();
+    } else {
+      this.currentTranslateY = this.targetTranslateY;
+      this.applyTransform();
     }
+  }
+
+  // Smooth scroll animation using requestAnimationFrame with easing
+  private startSmoothScroll() {
+    // Cancel any existing animation
+    if (this.smoothScrollAnimationId !== null) {
+      cancelAnimationFrame(this.smoothScrollAnimationId);
+    }
+
+    const animateSmoothScroll = () => {
+      const distance = this.targetTranslateY - this.currentTranslateY;
+
+      // If close enough to target, snap to it and stop
+      if (Math.abs(distance) < 0.5) {
+        this.currentTranslateY = this.targetTranslateY;
+        this.applyTransform();
+        this.updateActiveLine();
+        this.smoothScrollAnimationId = null;
+        return;
+      }
+
+      // Lerp towards target (0.15 = smooth easing factor)
+      this.currentTranslateY += distance * 0.15;
+      this.applyTransform();
+      this.updateActiveLine();
+
+      // Continue animation
+      this.smoothScrollAnimationId = requestAnimationFrame(animateSmoothScroll);
+    };
+
+    this.smoothScrollAnimationId = requestAnimationFrame(animateSmoothScroll);
   }
 
   updateTelepromptText() {
@@ -549,6 +653,7 @@ class TeleprompterDisplay {
 
     // Update translateY position and apply transform
     this.currentTranslateY -= scrollAmount;
+    this.targetTranslateY = this.currentTranslateY; // Keep target in sync
     this.applyTransform();
 
     // Throttle active line updates to every 100ms for performance
@@ -701,6 +806,7 @@ class TeleprompterDisplay {
       if (this.state.scriptEnded && this.telepromptTextInner) {
         // Reset to start
         this.currentTranslateY = 0;
+        this.targetTranslateY = 0;
         this.applyTransform();
         this.state.activeLineIndex = 0;
         this.state.scriptEnded = false;
@@ -734,6 +840,36 @@ class TeleprompterDisplay {
 
   private setupCustomEventListeners() {
     this.backToTopHandler = () => {
+      // Stop scrolling if currently playing
+      if (this.state.isScrolling) {
+        if (this.animationFrameId !== null) {
+          window.cancelAnimationFrame(this.animationFrameId);
+          this.animationFrameId = null;
+        }
+        this.state.isScrolling = false;
+        this.isRampingUp = false;
+        this.isRampingDown = false;
+        // Notify UI that scrolling stopped
+        document.dispatchEvent(new CustomEvent("scrolling-toggled", {
+          detail: { isScrolling: false, isCountingDown: false },
+        }));
+      }
+
+      // Clear ramp down timeout if in progress
+      if (this.rampDownTimeoutId !== null) {
+        clearTimeout(this.rampDownTimeoutId);
+        this.rampDownTimeoutId = null;
+      }
+
+      // Cancel countdown if in progress
+      this.cancelCountdown();
+
+      // Cancel any smooth scroll animation
+      if (this.smoothScrollAnimationId !== null) {
+        cancelAnimationFrame(this.smoothScrollAnimationId);
+        this.smoothScrollAnimationId = null;
+      }
+
       // When going back to top, apply a smooth transition
       if (this.telepromptTextInner) {
         // Calculate appropriate transition duration based on current position and speed
@@ -744,6 +880,7 @@ class TeleprompterDisplay {
 
         this.telepromptTextInner.style.transition = `transform ${transitionDuration}s ease-out`;
         this.currentTranslateY = 0;
+        this.targetTranslateY = 0;
         this.applyTransform();
 
         // Reset to no transition after animation is done
@@ -861,6 +998,10 @@ class TeleprompterDisplay {
       document.removeEventListener("back-to-top", this.backToTopHandler as EventListener);
       this.backToTopHandler = null;
     }
+    if (this.wheelHandler && this.telepromptText) {
+      this.telepromptText.removeEventListener("wheel", this.wheelHandler);
+      this.wheelHandler = null;
+    }
 
     // Clear intervals and timeouts
     if (this.countdownIntervalId !== null) {
@@ -875,6 +1016,10 @@ class TeleprompterDisplay {
       window.cancelAnimationFrame(this.animationFrameId);
       this.animationFrameId = null;
     }
+    if (this.smoothScrollAnimationId !== null) {
+      cancelAnimationFrame(this.smoothScrollAnimationId);
+      this.smoothScrollAnimationId = null;
+    }
 
     // Remove DOM element
     if (this.element && this.element.parentNode) {
@@ -888,6 +1033,7 @@ class FloatingToolbar {
   private element: HTMLElement;
   private state: TeleprompterState;
   private editBtn: HTMLButtonElement;
+  private restartBtn: HTMLButtonElement;
   private playPauseBtn: HTMLButtonElement;
   private speedMinusBtn: HTMLButtonElement;
   private speedPlusBtn: HTMLButtonElement;
@@ -928,6 +1074,7 @@ class FloatingToolbar {
 
     // Create buttons
     this.editBtn = this.createButton("toolbar-btn toolbar-btn-edit toolbar-btn-icon", editIcon, i18n.t('edit'));
+    this.restartBtn = this.createButton("toolbar-btn toolbar-btn-restart toolbar-btn-icon", restartIcon, i18n.t('backToTop'));
     this.playPauseBtn = this.createButton("toolbar-btn toolbar-btn-play", "", i18n.t('play'));
     this.playPauseBtn.textContent = i18n.t('play');
 
@@ -970,6 +1117,7 @@ class FloatingToolbar {
 
     // Append all elements
     this.element.appendChild(this.editBtn);
+    this.element.appendChild(this.restartBtn);
     this.element.appendChild(this.playPauseBtn);
     this.element.appendChild(speedControl);
     this.element.appendChild(this.durationDisplay);
@@ -998,6 +1146,7 @@ class FloatingToolbar {
 
   private updateLabels() {
     this.editBtn.setAttribute("aria-label", i18n.t('edit'));
+    this.restartBtn.setAttribute("aria-label", i18n.t('backToTop'));
     this.speedMinusBtn.setAttribute("aria-label", i18n.t('decreaseSpeed'));
     this.speedPlusBtn.setAttribute("aria-label", i18n.t('increaseSpeed'));
     this.fullscreenBtn.setAttribute("aria-label", i18n.t('toggleFullscreen'));
@@ -1010,6 +1159,11 @@ class FloatingToolbar {
     // Edit button
     this.editBtn.addEventListener("click", () => {
       this.onEditClick();
+    });
+
+    // Restart button
+    this.restartBtn.addEventListener("click", () => {
+      document.dispatchEvent(new CustomEvent("back-to-top"));
     });
 
     // Play/Pause button
