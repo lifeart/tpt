@@ -95,6 +95,25 @@ export interface Translations {
 
   // Error messages
   fullscreenError: string;
+
+  // New UI elements
+  edit: string;
+  editScript: string;
+  saveAndClose: string;
+  settings: string;
+  display: string;
+  typography: string;
+  general: string;
+  closeDrawer: string;
+
+  // Speed control accessibility
+  decreaseSpeed: string;
+  increaseSpeed: string;
+
+  // Editor char count
+  chars: string;
+  words: string;
+  lines: string;
 }
 
 const translations: Record<Locale, Translations> = {
@@ -175,6 +194,22 @@ Press the Play button to start scrolling.`,
     viewOnGitHub: 'View on GitHub',
 
     fullscreenError: 'Error attempting to enable full-screen mode',
+
+    edit: 'Edit',
+    editScript: 'Edit Script',
+    saveAndClose: 'Save & Close',
+    settings: 'Settings',
+    display: 'Display',
+    typography: 'Typography',
+    general: 'General',
+    closeDrawer: 'Close',
+
+    decreaseSpeed: 'Decrease speed',
+    increaseSpeed: 'Increase speed',
+
+    chars: 'chars',
+    words: 'words',
+    lines: 'lines',
   },
 
   ru: {
@@ -254,6 +289,22 @@ Press the Play button to start scrolling.`,
     viewOnGitHub: 'Смотреть на GitHub',
 
     fullscreenError: 'Ошибка при включении полноэкранного режима',
+
+    edit: 'Редактировать',
+    editScript: 'Редактировать текст',
+    saveAndClose: 'Сохранить',
+    settings: 'Настройки',
+    display: 'Отображение',
+    typography: 'Типографика',
+    general: 'Общие',
+    closeDrawer: 'Закрыть',
+
+    decreaseSpeed: 'Уменьшить скорость',
+    increaseSpeed: 'Увеличить скорость',
+
+    chars: 'символов',
+    words: 'слов',
+    lines: 'строк',
   },
 
   fr: {
@@ -333,6 +384,22 @@ Appuyez sur le bouton Lecture pour commencer le défilement.`,
     viewOnGitHub: 'Voir sur GitHub',
 
     fullscreenError: 'Erreur lors de l\'activation du mode plein écran',
+
+    edit: 'Éditer',
+    editScript: 'Éditer le script',
+    saveAndClose: 'Enregistrer',
+    settings: 'Paramètres',
+    display: 'Affichage',
+    typography: 'Typographie',
+    general: 'Général',
+    closeDrawer: 'Fermer',
+
+    decreaseSpeed: 'Réduire la vitesse',
+    increaseSpeed: 'Augmenter la vitesse',
+
+    chars: 'caractères',
+    words: 'mots',
+    lines: 'lignes',
   },
 
   es: {
@@ -412,6 +479,22 @@ Presiona el botón Reproducir para comenzar el desplazamiento.`,
     viewOnGitHub: 'Ver en GitHub',
 
     fullscreenError: 'Error al activar el modo de pantalla completa',
+
+    edit: 'Editar',
+    editScript: 'Editar guión',
+    saveAndClose: 'Guardar',
+    settings: 'Ajustes',
+    display: 'Pantalla',
+    typography: 'Tipografía',
+    general: 'General',
+    closeDrawer: 'Cerrar',
+
+    decreaseSpeed: 'Reducir velocidad',
+    increaseSpeed: 'Aumentar velocidad',
+
+    chars: 'caracteres',
+    words: 'palabras',
+    lines: 'líneas',
   },
 
   de: {
@@ -491,6 +574,22 @@ Drücken Sie die Wiedergabe-Taste, um das Scrollen zu starten.`,
     viewOnGitHub: 'Auf GitHub ansehen',
 
     fullscreenError: 'Fehler beim Aktivieren des Vollbildmodus',
+
+    edit: 'Bearbeiten',
+    editScript: 'Skript bearbeiten',
+    saveAndClose: 'Speichern',
+    settings: 'Einstellungen',
+    display: 'Anzeige',
+    typography: 'Typografie',
+    general: 'Allgemein',
+    closeDrawer: 'Schließen',
+
+    decreaseSpeed: 'Geschwindigkeit verringern',
+    increaseSpeed: 'Geschwindigkeit erhöhen',
+
+    chars: 'Zeichen',
+    words: 'Wörter',
+    lines: 'Zeilen',
   },
 };
 

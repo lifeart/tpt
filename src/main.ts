@@ -19,6 +19,10 @@ declare global {
     "scrolling-toggled": CustomEvent<ScrollingToggledDetail>;
     "toggle-scrolling": CustomEvent<void>;
     "back-to-top": CustomEvent<void>;
+    "speed-changed": CustomEvent<void>;
+    "settings-changed": CustomEvent<void>;
+    "drawer-opened": CustomEvent<void>;
+    "drawer-closed": CustomEvent<void>;
   }
 }
 
@@ -68,6 +72,12 @@ const fullscreenExitIcon = `
     <path d="M16 14h2v4h-4v-2h2v-2zm-8 0v2h2v2H6v-4h2zm8-8v2h-2V6h4v4h-2V8zm-8 2H6V6h4v2H8v2z"/>
   </svg>
 `;
+
+// SVG Icons for toolbar
+const editIcon = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="20" height="20"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34a.9959.9959 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>`;
+const settingsIcon = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="20" height="20"><path d="M19.14 12.94c.04-.31.06-.63.06-.94 0-.31-.02-.63-.06-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.04.31-.06.63-.06.94s.02.63.06.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg>`;
+const helpIcon = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="20" height="20"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 17h-2v-2h2v2zm2.07-7.75l-.9.92C13.45 12.9 13 13.5 13 15h-2v-.5c0-1.1.45-2.1 1.17-2.83l1.24-1.26c.37-.36.59-.86.59-1.41 0-1.1-.9-2-2-2s-2 .9-2 2H8c0-2.21 1.79-4 4-4s4 1.79 4 4c0 .88-.36 1.68-.93 2.25z"/></svg>`;
+const closeIcon = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="20" height="20"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>`;
 
 // Teleprompter state class
 class TeleprompterState {
@@ -178,7 +188,9 @@ class TeleprompterDisplay {
 
   private setupKeyboardNavigation() {
     this.keydownHandler = (e: KeyboardEvent) => {
-      const isMac = navigator.platform.toUpperCase().indexOf("MAC") >= 0;
+      // Detect macOS using userAgentData (modern) or userAgent (fallback)
+      const isMac = (navigator as Navigator & { userAgentData?: { platform: string } }).userAgentData?.platform === "macOS"
+        || /Mac|iPhone|iPad|iPod/i.test(navigator.userAgent);
       const ctrlOrCmd = isMac ? e.metaKey : e.ctrlKey;
       // --- Custom Shortcuts ---
       if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
@@ -190,17 +202,8 @@ class TeleprompterDisplay {
             this.state.fontSize = Math.min(CONFIG.FONT_SIZE.MAX, this.state.fontSize + 1);
           }
           this.updateStyles();
-          // Update font size label and input if present
-          const fontSizeLabel = document.querySelector(
-            'label[for="font-size"]'
-          ) as HTMLLabelElement;
-          if (fontSizeLabel)
-            fontSizeLabel.textContent = formatLabel('fontSize', this.state.fontSize, 'px');
-          const fontSizeInput = document.getElementById(
-            "font-size"
-          ) as HTMLInputElement;
-          if (fontSizeInput)
-            fontSizeInput.value = this.state.fontSize.toString();
+          // Notify UI components to update their displays
+          document.dispatchEvent(new CustomEvent("settings-changed"));
         } else {
           // Left/Right: Scroll speed in lines per second
           if (e.key === "ArrowLeft") {
@@ -211,17 +214,8 @@ class TeleprompterDisplay {
           // Round to 1 decimal place for cleaner display
           this.state.scrollSpeed = Math.round(this.state.scrollSpeed * 10) / 10;
 
-          // Update label if present
-          const scrollSpeedLabel = document.querySelector(
-            'label[for="scroll-speed"]'
-          ) as HTMLLabelElement;
-          if (scrollSpeedLabel)
-            scrollSpeedLabel.textContent = formatLabel('scrollSpeed', `${this.state.scrollSpeed} `, 'linesPerSec');
-          const scrollSpeedInput = document.getElementById(
-            "scroll-speed"
-          ) as HTMLInputElement;
-          if (scrollSpeedInput)
-            scrollSpeedInput.value = this.state.scrollSpeed.toString();
+          // Notify UI components to update their displays
+          document.dispatchEvent(new CustomEvent("speed-changed"));
         }
         e.preventDefault();
         return;
@@ -236,17 +230,8 @@ class TeleprompterDisplay {
           }
           this.state.lineSpacing = Math.round(this.state.lineSpacing * 10) / 10;
           this.updateStyles();
-          // Update label if present
-          const lineSpacingLabel = document.querySelector(
-            'label[for="line-spacing"]'
-          ) as HTMLLabelElement;
-          if (lineSpacingLabel)
-            lineSpacingLabel.textContent = formatLabel('lineSpacing', this.state.lineSpacing);
-          const lineSpacingInput = document.getElementById(
-            "line-spacing"
-          ) as HTMLInputElement;
-          if (lineSpacingInput)
-            lineSpacingInput.value = this.state.lineSpacing.toString();
+          // Notify UI components to update their displays
+          document.dispatchEvent(new CustomEvent("settings-changed"));
         } else if (!this.state.isScrolling) {
           // Up/Down: Move active line only if not playing
           if (e.key === "ArrowUp") {
@@ -733,56 +718,271 @@ class TeleprompterDisplay {
   }
 }
 
-// Teleprompter Controls Component
-class TeleprompterControls {
+// Floating Toolbar Component
+class FloatingToolbar {
   private element: HTMLDivElement;
   private state: TeleprompterState;
-  private onStateChange: () => void;
-  // Store event listeners for cleanup
+  private editBtn: HTMLButtonElement;
+  private playPauseBtn: HTMLButtonElement;
+  private speedMinusBtn: HTMLButtonElement;
+  private speedPlusBtn: HTMLButtonElement;
+  private speedValue: HTMLSpanElement;
+  private fullscreenBtn: HTMLButtonElement;
+  private settingsBtn: HTMLButtonElement;
+  private helpBtn: HTMLButtonElement;
   private scrollingToggledHandler: ((e: CustomEvent<ScrollingToggledDetail>) => void) | null = null;
   private fullscreenChangeHandler: (() => void) | null = null;
-  private helpKeyHandler: ((e: KeyboardEvent) => void) | null = null;
+  private autoHideTimeout: number | null = null;
   private i18nUnsubscribe: (() => void) | null = null;
-  private fontOptions = [
-    "System",
-    "Arial",
-    "Times New Roman",
-    "Courier New",
-    "Georgia",
-    "Verdana",
-    "Roboto",
-    "Open Sans",
-  ];
-  private appNodes: {
-    scriptInput: HTMLTextAreaElement;
-    fontFamilySelect: HTMLSelectElement;
-    fontSizeInput: HTMLInputElement;
-    fontColorInput: HTMLInputElement;
-    bgColorInput: HTMLInputElement;
-    lineSpacingInput: HTMLInputElement;
-    letterSpacingInput: HTMLInputElement;
-    scrollSpeedInput: HTMLInputElement;
-    maxWordsPerLineInput: HTMLInputElement;
-    languageSelect: HTMLSelectElement;
-    flipBtn: HTMLButtonElement;
-    playPauseBtn: HTMLButtonElement;
-    backToTopBtn: HTMLButtonElement;
-    fullscreenBtn: HTMLButtonElement;
-    helpBtn: HTMLButtonElement;
-    helpModal: HTMLDivElement;
-    // Add direct references to labels
-    scriptLabel: HTMLLabelElement;
-    fontLabel: HTMLLabelElement;
-    fontSizeLabel: HTMLLabelElement;
-    fontColorLabel: HTMLLabelElement;
-    bgColorLabel: HTMLLabelElement;
-    lineSpacingLabel: HTMLLabelElement;
-    letterSpacingLabel: HTMLLabelElement;
-    scrollSpeedLabel: HTMLLabelElement;
-    maxWordsPerLineLabel: HTMLLabelElement;
-    flipLabel: HTMLLabelElement;
-    languageLabel: HTMLLabelElement;
-  };
+
+  // Callbacks
+  private onEditClick: () => void;
+  private onSettingsClick: () => void;
+  private onHelpClick: () => void;
+
+  constructor(
+    container: HTMLElement,
+    state: TeleprompterState,
+    callbacks: {
+      onEditClick: () => void;
+      onSettingsClick: () => void;
+      onHelpClick: () => void;
+    }
+  ) {
+    this.state = state;
+    this.onEditClick = callbacks.onEditClick;
+    this.onSettingsClick = callbacks.onSettingsClick;
+    this.onHelpClick = callbacks.onHelpClick;
+
+    // Create toolbar element
+    this.element = document.createElement("div");
+    this.element.className = "floating-toolbar";
+
+    // Create buttons
+    this.editBtn = this.createButton("toolbar-btn toolbar-btn-edit toolbar-btn-icon", editIcon, i18n.t('edit'));
+    this.playPauseBtn = this.createButton("toolbar-btn toolbar-btn-play", "", i18n.t('play'));
+    this.playPauseBtn.textContent = i18n.t('play');
+
+    // Speed control
+    const speedControl = document.createElement("div");
+    speedControl.className = "speed-control";
+
+    this.speedMinusBtn = document.createElement("button");
+    this.speedMinusBtn.className = "speed-btn";
+    this.speedMinusBtn.textContent = "−";
+    this.speedMinusBtn.setAttribute("aria-label", i18n.t('decreaseSpeed'));
+
+    this.speedValue = document.createElement("span");
+    this.speedValue.className = "speed-value";
+    this.speedValue.textContent = `${this.state.scrollSpeed}x`;
+
+    this.speedPlusBtn = document.createElement("button");
+    this.speedPlusBtn.className = "speed-btn";
+    this.speedPlusBtn.textContent = "+";
+    this.speedPlusBtn.setAttribute("aria-label", i18n.t('increaseSpeed'));
+
+    speedControl.appendChild(this.speedMinusBtn);
+    speedControl.appendChild(this.speedValue);
+    speedControl.appendChild(this.speedPlusBtn);
+
+    this.fullscreenBtn = this.createButton("toolbar-btn toolbar-btn-fullscreen toolbar-btn-icon", fullscreenEnterIcon, i18n.t('toggleFullscreen'));
+    this.settingsBtn = this.createButton("toolbar-btn toolbar-btn-settings toolbar-btn-icon", settingsIcon, i18n.t('settings'));
+    this.helpBtn = this.createButton("toolbar-btn toolbar-btn-help toolbar-btn-icon", helpIcon, i18n.t('helpKeyboardShortcuts'));
+
+    // Append all elements
+    this.element.appendChild(this.editBtn);
+    this.element.appendChild(this.playPauseBtn);
+    this.element.appendChild(speedControl);
+    this.element.appendChild(this.fullscreenBtn);
+    this.element.appendChild(this.settingsBtn);
+    this.element.appendChild(this.helpBtn);
+
+    container.appendChild(this.element);
+
+    this.setupEventListeners();
+
+    // Subscribe to locale changes
+    this.i18nUnsubscribe = i18n.onChange(() => {
+      this.updateLabels();
+    });
+  }
+
+  private createButton(className: string, iconHtml: string, ariaLabel: string): HTMLButtonElement {
+    const btn = document.createElement("button");
+    btn.className = className;
+    btn.innerHTML = iconHtml;
+    btn.setAttribute("aria-label", ariaLabel);
+    return btn;
+  }
+
+  private updateLabels() {
+    this.editBtn.setAttribute("aria-label", i18n.t('edit'));
+    this.speedMinusBtn.setAttribute("aria-label", i18n.t('decreaseSpeed'));
+    this.speedPlusBtn.setAttribute("aria-label", i18n.t('increaseSpeed'));
+    this.fullscreenBtn.setAttribute("aria-label", i18n.t('toggleFullscreen'));
+    this.settingsBtn.setAttribute("aria-label", i18n.t('settings'));
+    this.helpBtn.setAttribute("aria-label", i18n.t('helpKeyboardShortcuts'));
+    // Play/pause button text is managed by scrolling-toggled event
+  }
+
+  private setupEventListeners() {
+    // Edit button
+    this.editBtn.addEventListener("click", () => {
+      this.onEditClick();
+    });
+
+    // Play/Pause button
+    this.playPauseBtn.addEventListener("click", () => {
+      document.dispatchEvent(new CustomEvent("toggle-scrolling"));
+    });
+
+    // Speed controls
+    this.speedMinusBtn.addEventListener("click", () => {
+      this.state.scrollSpeed = Math.max(CONFIG.SCROLL_SPEED.MIN, this.state.scrollSpeed - CONFIG.SCROLL_SPEED.STEP);
+      this.state.scrollSpeed = Math.round(this.state.scrollSpeed * 10) / 10;
+      this.updateSpeedDisplay();
+      document.dispatchEvent(new CustomEvent("speed-changed"));
+    });
+
+    this.speedPlusBtn.addEventListener("click", () => {
+      this.state.scrollSpeed = Math.min(CONFIG.SCROLL_SPEED.MAX, this.state.scrollSpeed + CONFIG.SCROLL_SPEED.STEP);
+      this.state.scrollSpeed = Math.round(this.state.scrollSpeed * 10) / 10;
+      this.updateSpeedDisplay();
+      document.dispatchEvent(new CustomEvent("speed-changed"));
+    });
+
+    // Fullscreen button
+    this.fullscreenBtn.addEventListener("click", () => {
+      this.toggleFullscreen();
+    });
+
+    // Settings button
+    this.settingsBtn.addEventListener("click", () => {
+      this.onSettingsClick();
+    });
+
+    // Help button
+    this.helpBtn.addEventListener("click", () => {
+      this.onHelpClick();
+    });
+
+    // Listen for scrolling state changes
+    this.scrollingToggledHandler = (e: CustomEvent<ScrollingToggledDetail>) => {
+      if (e.detail.isCountingDown) {
+        this.playPauseBtn.textContent = i18n.t('cancel');
+        this.playPauseBtn.classList.remove("playing");
+        this.playPauseBtn.classList.add("countdown");
+      } else if (e.detail.isScrolling) {
+        this.playPauseBtn.textContent = i18n.t('pause');
+        this.playPauseBtn.classList.add("playing");
+        this.playPauseBtn.classList.remove("countdown");
+        this.startAutoHide();
+      } else {
+        this.playPauseBtn.textContent = i18n.t('play');
+        this.playPauseBtn.classList.remove("playing", "countdown");
+        this.stopAutoHide();
+      }
+    };
+    document.addEventListener("scrolling-toggled", this.scrollingToggledHandler as EventListener);
+
+    // Listen for fullscreen changes
+    this.fullscreenChangeHandler = () => {
+      this.updateFullscreenIcon();
+    };
+    document.addEventListener("fullscreenchange", this.fullscreenChangeHandler);
+  }
+
+  private toggleFullscreen() {
+    const appRoot = document.documentElement;
+
+    if (!document.fullscreenElement) {
+      appRoot.requestFullscreen().catch((err) => {
+        alert(`${i18n.t('fullscreenError')}: ${err.message} (${err.name})`);
+      });
+    } else {
+      if (document.exitFullscreen) {
+        document.exitFullscreen();
+      }
+    }
+  }
+
+  private updateFullscreenIcon() {
+    this.fullscreenBtn.innerHTML = document.fullscreenElement
+      ? fullscreenExitIcon
+      : fullscreenEnterIcon;
+  }
+
+  private updateSpeedDisplay() {
+    this.speedValue.textContent = `${this.state.scrollSpeed}x`;
+  }
+
+  updateSpeed(speed: number) {
+    this.state.scrollSpeed = speed;
+    this.updateSpeedDisplay();
+  }
+
+  private startAutoHide() {
+    // Only auto-hide in phone landscape mode
+    if (window.innerWidth <= 900 && window.innerHeight <= 500) {
+      this.stopAutoHide();
+      this.autoHideTimeout = window.setTimeout(() => {
+        this.element.classList.add("auto-hide");
+      }, 3000);
+    }
+  }
+
+  private stopAutoHide() {
+    if (this.autoHideTimeout !== null) {
+      clearTimeout(this.autoHideTimeout);
+      this.autoHideTimeout = null;
+    }
+    this.element.classList.remove("auto-hide");
+  }
+
+  destroy() {
+    if (this.scrollingToggledHandler) {
+      document.removeEventListener("scrolling-toggled", this.scrollingToggledHandler as EventListener);
+      this.scrollingToggledHandler = null;
+    }
+    if (this.fullscreenChangeHandler) {
+      document.removeEventListener("fullscreenchange", this.fullscreenChangeHandler);
+      this.fullscreenChangeHandler = null;
+    }
+    if (this.i18nUnsubscribe) {
+      this.i18nUnsubscribe();
+      this.i18nUnsubscribe = null;
+    }
+    this.stopAutoHide();
+    if (this.element && this.element.parentNode) {
+      this.element.parentNode.removeChild(this.element);
+    }
+  }
+}
+
+// Settings Drawer Component
+class SettingsDrawer {
+  private backdrop: HTMLDivElement;
+  private drawer: HTMLDivElement;
+  private state: TeleprompterState;
+  private onStateChange: () => void;
+  private isOpen: boolean = false;
+  private activeTab: string = "display";
+  private i18nUnsubscribe: (() => void) | null = null;
+  private settingsChangedHandler: (() => void) | null = null;
+
+  // Input references for updating labels
+  private fontSizeInput: HTMLInputElement | null = null;
+  private fontSizeLabel: HTMLLabelElement | null = null;
+  private lineSpacingInput: HTMLInputElement | null = null;
+  private lineSpacingLabel: HTMLLabelElement | null = null;
+  private letterSpacingInput: HTMLInputElement | null = null;
+  private letterSpacingLabel: HTMLLabelElement | null = null;
+  private scrollSpeedInput: HTMLInputElement | null = null;
+  private scrollSpeedLabel: HTMLLabelElement | null = null;
+  private maxWordsPerLineInput: HTMLInputElement | null = null;
+  private maxWordsPerLineLabel: HTMLLabelElement | null = null;
+  private tabButtons: HTMLButtonElement[] = [];
+  private closeBtn: HTMLButtonElement | null = null;
 
   constructor(
     container: HTMLElement,
@@ -792,285 +992,332 @@ class TeleprompterControls {
     this.state = state;
     this.onStateChange = onStateChange;
 
-    this.element = document.createElement("div");
-    this.element.className = "controls-panel bg-gray-800 p-4 relative"; // Keep relative positioning
+    // Create backdrop
+    this.backdrop = document.createElement("div");
+    this.backdrop.className = "settings-drawer-backdrop";
+    this.backdrop.addEventListener("click", () => this.close());
 
-    // Initialize appNodes
-    this.appNodes = {
-      scriptInput: document.createElement("textarea"),
-      fontFamilySelect: document.createElement("select"),
-      fontSizeInput: document.createElement("input"),
-      fontColorInput: document.createElement("input"),
-      bgColorInput: document.createElement("input"),
-      lineSpacingInput: document.createElement("input"),
-      letterSpacingInput: document.createElement("input"),
-      scrollSpeedInput: document.createElement("input"),
-      maxWordsPerLineInput: document.createElement("input"),
-      languageSelect: document.createElement("select"),
-      flipBtn: document.createElement("button"),
-      playPauseBtn: document.createElement("button"),
-      backToTopBtn: document.createElement("button"),
-      fullscreenBtn: document.createElement("button"),
-      helpBtn: document.createElement("button"),
-      helpModal: document.createElement("div"),
-      // Add direct references to labels
-      scriptLabel: document.createElement("label"),
-      fontLabel: document.createElement("label"),
-      fontSizeLabel: document.createElement("label"),
-      fontColorLabel: document.createElement("label"),
-      bgColorLabel: document.createElement("label"),
-      lineSpacingLabel: document.createElement("label"),
-      letterSpacingLabel: document.createElement("label"),
-      scrollSpeedLabel: document.createElement("label"),
-      maxWordsPerLineLabel: document.createElement("label"),
-      flipLabel: document.createElement("label"),
-      languageLabel: document.createElement("label"),
-    };
+    // Create drawer
+    this.drawer = document.createElement("div");
+    this.drawer.className = "settings-drawer";
 
     this.render();
-    container.appendChild(this.element);
-    this.setupEventListeners();
-    this.setupFullscreenListener(); // Add listener for fullscreen changes
-    this.handleFullscreenPanelVisibility(); // Initial check
+
+    container.appendChild(this.backdrop);
+    container.appendChild(this.drawer);
 
     // Subscribe to locale changes
     this.i18nUnsubscribe = i18n.onChange(() => {
-      this.updateAllLabels();
+      this.updateLabels();
     });
-  }
 
-  private updateAllLabels() {
-    // Update all labels with current locale
-    this.appNodes.scriptLabel.textContent = i18n.t('script');
-    this.appNodes.fontLabel.textContent = i18n.t('font');
-    this.appNodes.fontSizeLabel.textContent = formatLabel('fontSize', this.state.fontSize, 'px');
-    this.appNodes.fontColorLabel.textContent = i18n.t('fontColor');
-    this.appNodes.bgColorLabel.textContent = i18n.t('backgroundColor');
-    this.appNodes.lineSpacingLabel.textContent = formatLabel('lineSpacing', this.state.lineSpacing);
-    this.appNodes.letterSpacingLabel.textContent = formatLabel('letterSpacing', this.state.letterSpacing, 'px');
-    this.appNodes.scrollSpeedLabel.textContent = formatLabel('scrollSpeed', `${this.state.scrollSpeed} `, 'linesPerSec');
-    this.appNodes.maxWordsPerLineLabel.textContent = formatLabel('maxWordsPerLine', this.state.maxWordsPerLine);
-    this.appNodes.flipLabel.textContent = i18n.t('flipScreen');
-    this.appNodes.languageLabel.textContent = i18n.t('language');
-
-    // Update buttons
-    this.appNodes.flipBtn.textContent = this.state.isFlipped ? i18n.t('unflip') : i18n.t('flip');
-    // Note: play/pause button state is managed by scrolling-toggled event, just update with current text
-    this.appNodes.playPauseBtn.textContent = i18n.t('play');
-    this.appNodes.backToTopBtn.textContent = i18n.t('backToTop');
-
-    // Update aria-labels
-    this.appNodes.fullscreenBtn.setAttribute("aria-label", i18n.t('toggleFullscreen'));
-    this.appNodes.helpBtn.setAttribute("aria-label", i18n.t('helpKeyboardShortcuts'));
-
-    // Update help modal content (uses DOM methods, not innerHTML)
-    this.updateHelpModalContent();
+    // Subscribe to settings changes (from keyboard shortcuts)
+    this.settingsChangedHandler = () => {
+      this.syncInputsFromState();
+    };
+    document.addEventListener("settings-changed", this.settingsChangedHandler);
   }
 
   private render() {
-    const controlsGrid = document.createElement("div");
-    controlsGrid.className = "grid grid-cols-2 md:grid-cols-4 gap-4";
+    // Drag handle
+    const handle = document.createElement("div");
+    handle.className = "drawer-handle";
+    this.drawer.appendChild(handle);
 
-    // Text Input
-    const textInputContainer = document.createElement("div");
-    textInputContainer.className = "col-span-2 md:col-span-4";
+    // Tab navigation
+    const tabs = document.createElement("div");
+    tabs.className = "drawer-tabs";
 
-    this.appNodes.scriptLabel.htmlFor = "script-input";
-    this.appNodes.scriptLabel.className = "block text-sm font-medium text-gray-300";
-    this.appNodes.scriptLabel.textContent = i18n.t('script');
+    const tabNames = [
+      { id: "display", label: i18n.t('display') },
+      { id: "typography", label: i18n.t('typography') },
+      { id: "general", label: i18n.t('general') },
+    ];
 
-    this.appNodes.scriptInput.id = "script-input";
-    this.appNodes.scriptInput.className =
-      "w-full h-24 p-2 rounded bg-gray-700 text-white";
-    this.appNodes.scriptInput.value = this.state.text;
+    this.tabButtons = tabNames.map(({ id, label }) => {
+      const btn = document.createElement("button");
+      btn.className = `drawer-tab${id === this.activeTab ? " active" : ""}`;
+      btn.textContent = label;
+      btn.dataset.tab = id;
+      btn.addEventListener("click", () => this.switchTab(id));
+      tabs.appendChild(btn);
+      return btn;
+    });
 
-    textInputContainer.appendChild(this.appNodes.scriptLabel);
-    textInputContainer.appendChild(this.appNodes.scriptInput);
-    controlsGrid.appendChild(textInputContainer);
+    this.drawer.appendChild(tabs);
 
+    // Content area
+    const content = document.createElement("div");
+    content.className = "drawer-content";
+
+    // Display tab
+    const displayPanel = this.createPanel("display");
+    this.renderDisplayTab(displayPanel);
+    content.appendChild(displayPanel);
+
+    // Typography tab
+    const typographyPanel = this.createPanel("typography");
+    this.renderTypographyTab(typographyPanel);
+    content.appendChild(typographyPanel);
+
+    // General tab
+    const generalPanel = this.createPanel("general");
+    this.renderGeneralTab(generalPanel);
+    content.appendChild(generalPanel);
+
+    this.drawer.appendChild(content);
+
+    // Close button
+    this.closeBtn = document.createElement("button");
+    this.closeBtn.className = "drawer-close-btn";
+    this.closeBtn.textContent = i18n.t('closeDrawer');
+    this.closeBtn.addEventListener("click", () => this.close());
+
+    const closeContainer = document.createElement("div");
+    closeContainer.style.padding = "0 16px 16px";
+    closeContainer.appendChild(this.closeBtn);
+    this.drawer.appendChild(closeContainer);
+  }
+
+  private createPanel(id: string): HTMLDivElement {
+    const panel = document.createElement("div");
+    panel.className = `drawer-tab-panel${id === this.activeTab ? " active" : ""}`;
+    panel.dataset.panel = id;
+    return panel;
+  }
+
+  private renderDisplayTab(panel: HTMLDivElement) {
+    // Font Size
+    const fontSizeGroup = this.createSettingsGroup();
+    this.fontSizeLabel = document.createElement("label");
+    this.fontSizeLabel.className = "settings-label";
+    this.fontSizeLabel.textContent = formatLabel('fontSize', this.state.fontSize, 'px');
+
+    const fontSizeRow = document.createElement("div");
+    fontSizeRow.className = "settings-row";
+
+    this.fontSizeInput = document.createElement("input");
+    this.fontSizeInput.type = "range";
+    this.fontSizeInput.min = CONFIG.FONT_SIZE.MIN.toString();
+    this.fontSizeInput.max = CONFIG.FONT_SIZE.MAX.toString();
+    this.fontSizeInput.value = this.state.fontSize.toString();
+    this.fontSizeInput.addEventListener("input", () => {
+      this.state.fontSize = this.fontSizeInput!.valueAsNumber;
+      this.fontSizeLabel!.textContent = formatLabel('fontSize', this.state.fontSize, 'px');
+      this.onStateChange();
+    });
+
+    fontSizeRow.appendChild(this.fontSizeInput);
+    fontSizeGroup.appendChild(this.fontSizeLabel);
+    fontSizeGroup.appendChild(fontSizeRow);
+    panel.appendChild(fontSizeGroup);
+
+    // Colors row
+    const colorsGroup = this.createSettingsGroup();
+    const colorsLabel = document.createElement("label");
+    colorsLabel.className = "settings-label";
+    colorsLabel.textContent = `${i18n.t('fontColor')} / ${i18n.t('backgroundColor')}`;
+
+    const colorsRow = document.createElement("div");
+    colorsRow.className = "settings-color-row";
+
+    // Font color
+    const fontColorItem = document.createElement("div");
+    fontColorItem.className = "settings-color-item";
+    const fontColorInput = document.createElement("input");
+    fontColorInput.type = "color";
+    fontColorInput.className = "settings-color-input";
+    fontColorInput.value = this.state.fontColor;
+    fontColorInput.addEventListener("input", () => {
+      this.state.fontColor = fontColorInput.value;
+      this.onStateChange();
+    });
+    fontColorItem.appendChild(fontColorInput);
+
+    // Background color
+    const bgColorItem = document.createElement("div");
+    bgColorItem.className = "settings-color-item";
+    const bgColorInput = document.createElement("input");
+    bgColorInput.type = "color";
+    bgColorInput.className = "settings-color-input";
+    bgColorInput.value = this.state.backgroundColor;
+    bgColorInput.addEventListener("input", () => {
+      this.state.backgroundColor = bgColorInput.value;
+      this.onStateChange();
+    });
+    bgColorItem.appendChild(bgColorInput);
+
+    colorsRow.appendChild(fontColorItem);
+    colorsRow.appendChild(bgColorItem);
+    colorsGroup.appendChild(colorsLabel);
+    colorsGroup.appendChild(colorsRow);
+    panel.appendChild(colorsGroup);
+
+    // Flip mode
+    const flipGroup = this.createSettingsGroup();
+    const flipRow = document.createElement("div");
+    flipRow.className = "settings-row";
+    flipRow.style.justifyContent = "space-between";
+
+    const flipLabel = document.createElement("label");
+    flipLabel.className = "settings-label";
+    flipLabel.style.marginBottom = "0";
+    flipLabel.textContent = i18n.t('flipScreen');
+
+    const flipBtn = document.createElement("button");
+    flipBtn.className = "toolbar-btn toolbar-btn-edit";
+    flipBtn.textContent = this.state.isFlipped ? i18n.t('unflip') : i18n.t('flip');
+    flipBtn.addEventListener("click", () => {
+      this.state.isFlipped = !this.state.isFlipped;
+      flipBtn.textContent = this.state.isFlipped ? i18n.t('unflip') : i18n.t('flip');
+      this.onStateChange();
+    });
+
+    flipRow.appendChild(flipLabel);
+    flipRow.appendChild(flipBtn);
+    flipGroup.appendChild(flipRow);
+    panel.appendChild(flipGroup);
+  }
+
+  private renderTypographyTab(panel: HTMLDivElement) {
     // Font Family
-    const fontFamilyContainer = document.createElement("div");
+    const fontFamilyGroup = this.createSettingsGroup();
+    const fontFamilyLabel = document.createElement("label");
+    fontFamilyLabel.className = "settings-label";
+    fontFamilyLabel.textContent = i18n.t('font');
 
-    this.appNodes.fontLabel.htmlFor = "font-family";
-    this.appNodes.fontLabel.className = "block text-sm font-medium text-gray-300";
-    this.appNodes.fontLabel.textContent = i18n.t('font');
+    const fontFamilySelect = document.createElement("select");
+    fontFamilySelect.className = "settings-select";
 
-    this.appNodes.fontFamilySelect.id = "font-family";
-    this.appNodes.fontFamilySelect.className =
-      "w-full p-2 rounded bg-gray-700 text-white";
+    const fontOptions = [
+      "System",
+      "Arial",
+      "Times New Roman",
+      "Courier New",
+      "Georgia",
+      "Verdana",
+      "Roboto",
+      "Open Sans",
+    ];
 
-    this.fontOptions.forEach((font) => {
+    fontOptions.forEach((font) => {
       const option = document.createElement("option");
       option.value = font;
       option.textContent = font;
       if (this.state.fontFamily === font) {
         option.selected = true;
       }
-      this.appNodes.fontFamilySelect.appendChild(option);
+      fontFamilySelect.appendChild(option);
     });
 
-    fontFamilyContainer.appendChild(this.appNodes.fontLabel);
-    fontFamilyContainer.appendChild(this.appNodes.fontFamilySelect);
-    controlsGrid.appendChild(fontFamilyContainer);
+    fontFamilySelect.addEventListener("change", () => {
+      this.state.fontFamily = fontFamilySelect.value;
+      this.onStateChange();
+    });
 
-    // Font Size
-    const fontSizeContainer = document.createElement("div");
-
-    this.appNodes.fontSizeLabel.htmlFor = "font-size";
-    this.appNodes.fontSizeLabel.className =
-      "block text-sm font-medium text-gray-300";
-    this.appNodes.fontSizeLabel.textContent = formatLabel('fontSize', this.state.fontSize, 'px');
-
-    this.appNodes.fontSizeInput.id = "font-size";
-    this.appNodes.fontSizeInput.type = "range";
-    this.appNodes.fontSizeInput.min = CONFIG.FONT_SIZE.MIN.toString();
-    this.appNodes.fontSizeInput.max = CONFIG.FONT_SIZE.MAX.toString();
-    this.appNodes.fontSizeInput.value = this.state.fontSize.toString();
-    this.appNodes.fontSizeInput.className = "w-full";
-
-    fontSizeContainer.appendChild(this.appNodes.fontSizeLabel);
-    fontSizeContainer.appendChild(this.appNodes.fontSizeInput);
-    controlsGrid.appendChild(fontSizeContainer);
-
-    // Font Color
-    const fontColorContainer = document.createElement("div");
-
-    this.appNodes.fontColorLabel.htmlFor = "font-color";
-    this.appNodes.fontColorLabel.className = "block text-sm font-medium text-gray-300";
-    this.appNodes.fontColorLabel.textContent = i18n.t('fontColor');
-
-    this.appNodes.fontColorInput.id = "font-color";
-    this.appNodes.fontColorInput.type = "color";
-    this.appNodes.fontColorInput.value = this.state.fontColor;
-    this.appNodes.fontColorInput.className =
-      "w-full h-10 p-1 rounded bg-gray-700";
-
-    fontColorContainer.appendChild(this.appNodes.fontColorLabel);
-    fontColorContainer.appendChild(this.appNodes.fontColorInput);
-    controlsGrid.appendChild(fontColorContainer);
-
-    // Background Color
-    const bgColorContainer = document.createElement("div");
-
-    this.appNodes.bgColorLabel.htmlFor = "bg-color";
-    this.appNodes.bgColorLabel.className = "block text-sm font-medium text-gray-300";
-    this.appNodes.bgColorLabel.textContent = i18n.t('backgroundColor');
-
-    this.appNodes.bgColorInput.id = "bg-color";
-    this.appNodes.bgColorInput.type = "color";
-    this.appNodes.bgColorInput.value = this.state.backgroundColor;
-    this.appNodes.bgColorInput.className =
-      "w-full h-10 p-1 rounded bg-gray-700";
-
-    bgColorContainer.appendChild(this.appNodes.bgColorLabel);
-    bgColorContainer.appendChild(this.appNodes.bgColorInput);
-    controlsGrid.appendChild(bgColorContainer);
+    fontFamilyGroup.appendChild(fontFamilyLabel);
+    fontFamilyGroup.appendChild(fontFamilySelect);
+    panel.appendChild(fontFamilyGroup);
 
     // Line Spacing
-    const lineSpacingContainer = document.createElement("div");
+    const lineSpacingGroup = this.createSettingsGroup();
+    this.lineSpacingLabel = document.createElement("label");
+    this.lineSpacingLabel.className = "settings-label";
+    this.lineSpacingLabel.textContent = formatLabel('lineSpacing', this.state.lineSpacing);
 
-    this.appNodes.lineSpacingLabel.htmlFor = "line-spacing";
-    this.appNodes.lineSpacingLabel.className =
-      "block text-sm font-medium text-gray-300";
-    this.appNodes.lineSpacingLabel.textContent = formatLabel('lineSpacing', this.state.lineSpacing);
+    this.lineSpacingInput = document.createElement("input");
+    this.lineSpacingInput.type = "range";
+    this.lineSpacingInput.min = CONFIG.LINE_SPACING.MIN.toString();
+    this.lineSpacingInput.max = CONFIG.LINE_SPACING.MAX.toString();
+    this.lineSpacingInput.step = CONFIG.LINE_SPACING.STEP.toString();
+    this.lineSpacingInput.value = this.state.lineSpacing.toString();
+    this.lineSpacingInput.addEventListener("input", () => {
+      this.state.lineSpacing = parseFloat(this.lineSpacingInput!.value);
+      this.lineSpacingLabel!.textContent = formatLabel('lineSpacing', this.state.lineSpacing);
+      this.onStateChange();
+    });
 
-    this.appNodes.lineSpacingInput.id = "line-spacing";
-    this.appNodes.lineSpacingInput.type = "range";
-    this.appNodes.lineSpacingInput.min = CONFIG.LINE_SPACING.MIN.toString();
-    this.appNodes.lineSpacingInput.max = CONFIG.LINE_SPACING.MAX.toString();
-    this.appNodes.lineSpacingInput.step = CONFIG.LINE_SPACING.STEP.toString();
-    this.appNodes.lineSpacingInput.value = this.state.lineSpacing.toString();
-    this.appNodes.lineSpacingInput.className = "w-full";
-
-    lineSpacingContainer.appendChild(this.appNodes.lineSpacingLabel);
-    lineSpacingContainer.appendChild(this.appNodes.lineSpacingInput);
-    controlsGrid.appendChild(lineSpacingContainer);
+    lineSpacingGroup.appendChild(this.lineSpacingLabel);
+    lineSpacingGroup.appendChild(this.lineSpacingInput);
+    panel.appendChild(lineSpacingGroup);
 
     // Letter Spacing
-    const letterSpacingContainer = document.createElement("div");
+    const letterSpacingGroup = this.createSettingsGroup();
+    this.letterSpacingLabel = document.createElement("label");
+    this.letterSpacingLabel.className = "settings-label";
+    this.letterSpacingLabel.textContent = formatLabel('letterSpacing', this.state.letterSpacing, 'px');
 
-    this.appNodes.letterSpacingLabel.htmlFor = "letter-spacing";
-    this.appNodes.letterSpacingLabel.className =
-      "block text-sm font-medium text-gray-300";
-    this.appNodes.letterSpacingLabel.textContent = formatLabel('letterSpacing', this.state.letterSpacing, 'px');
+    this.letterSpacingInput = document.createElement("input");
+    this.letterSpacingInput.type = "range";
+    this.letterSpacingInput.min = CONFIG.LETTER_SPACING.MIN.toString();
+    this.letterSpacingInput.max = CONFIG.LETTER_SPACING.MAX.toString();
+    this.letterSpacingInput.value = this.state.letterSpacing.toString();
+    this.letterSpacingInput.addEventListener("input", () => {
+      this.state.letterSpacing = this.letterSpacingInput!.valueAsNumber;
+      this.letterSpacingLabel!.textContent = formatLabel('letterSpacing', this.state.letterSpacing, 'px');
+      this.onStateChange();
+    });
 
-    this.appNodes.letterSpacingInput.id = "letter-spacing";
-    this.appNodes.letterSpacingInput.type = "range";
-    this.appNodes.letterSpacingInput.min = CONFIG.LETTER_SPACING.MIN.toString();
-    this.appNodes.letterSpacingInput.max = CONFIG.LETTER_SPACING.MAX.toString();
-    this.appNodes.letterSpacingInput.value =
-      this.state.letterSpacing.toString();
-    this.appNodes.letterSpacingInput.className = "w-full";
-
-    letterSpacingContainer.appendChild(this.appNodes.letterSpacingLabel);
-    letterSpacingContainer.appendChild(this.appNodes.letterSpacingInput);
-    controlsGrid.appendChild(letterSpacingContainer);
-
-    // Scroll Speed
-    const scrollSpeedContainer = document.createElement("div");
-
-    this.appNodes.scrollSpeedLabel.htmlFor = "scroll-speed";
-    this.appNodes.scrollSpeedLabel.className =
-      "block text-sm font-medium text-gray-300";
-    this.appNodes.scrollSpeedLabel.textContent = formatLabel('scrollSpeed', `${this.state.scrollSpeed} `, 'linesPerSec');
-
-    this.appNodes.scrollSpeedInput.id = "scroll-speed";
-    this.appNodes.scrollSpeedInput.type = "range";
-    this.appNodes.scrollSpeedInput.min = CONFIG.SCROLL_SPEED.MIN.toString();
-    this.appNodes.scrollSpeedInput.max = CONFIG.SCROLL_SPEED.MAX.toString();
-    this.appNodes.scrollSpeedInput.step = CONFIG.SCROLL_SPEED.STEP.toString();
-    this.appNodes.scrollSpeedInput.value = this.state.scrollSpeed.toString();
-    this.appNodes.scrollSpeedInput.className = "w-full";
-
-    scrollSpeedContainer.appendChild(this.appNodes.scrollSpeedLabel);
-    scrollSpeedContainer.appendChild(this.appNodes.scrollSpeedInput);
-    controlsGrid.appendChild(scrollSpeedContainer);
+    letterSpacingGroup.appendChild(this.letterSpacingLabel);
+    letterSpacingGroup.appendChild(this.letterSpacingInput);
+    panel.appendChild(letterSpacingGroup);
 
     // Max Words Per Line
-    const maxWordsPerLineContainer = document.createElement("div");
+    const maxWordsGroup = this.createSettingsGroup();
+    this.maxWordsPerLineLabel = document.createElement("label");
+    this.maxWordsPerLineLabel.className = "settings-label";
+    this.maxWordsPerLineLabel.textContent = formatLabel('maxWordsPerLine', this.state.maxWordsPerLine);
 
-    this.appNodes.maxWordsPerLineLabel.htmlFor = "max-words-per-line";
-    this.appNodes.maxWordsPerLineLabel.className =
-      "block text-sm font-medium text-gray-300";
-    this.appNodes.maxWordsPerLineLabel.textContent = formatLabel('maxWordsPerLine', this.state.maxWordsPerLine);
+    this.maxWordsPerLineInput = document.createElement("input");
+    this.maxWordsPerLineInput.type = "number";
+    this.maxWordsPerLineInput.className = "settings-select";
+    this.maxWordsPerLineInput.min = CONFIG.MAX_WORDS_PER_LINE.MIN.toString();
+    this.maxWordsPerLineInput.value = this.state.maxWordsPerLine.toString();
+    this.maxWordsPerLineInput.addEventListener("input", () => {
+      const value = this.maxWordsPerLineInput!.valueAsNumber;
+      this.state.maxWordsPerLine = Number.isNaN(value) || value < 0 ? 0 : Math.floor(value);
+      this.maxWordsPerLineLabel!.textContent = formatLabel('maxWordsPerLine', this.state.maxWordsPerLine);
+      this.onStateChange();
+    });
 
-    this.appNodes.maxWordsPerLineInput.id = "max-words-per-line";
-    this.appNodes.maxWordsPerLineInput.type = "number";
-    this.appNodes.maxWordsPerLineInput.min = CONFIG.MAX_WORDS_PER_LINE.MIN.toString();
-    this.appNodes.maxWordsPerLineInput.value = this.state.maxWordsPerLine.toString();
-    this.appNodes.maxWordsPerLineInput.className = "w-full p-2 rounded bg-gray-700 text-white";
+    maxWordsGroup.appendChild(this.maxWordsPerLineLabel);
+    maxWordsGroup.appendChild(this.maxWordsPerLineInput);
+    panel.appendChild(maxWordsGroup);
 
-    maxWordsPerLineContainer.appendChild(this.appNodes.maxWordsPerLineLabel);
-    maxWordsPerLineContainer.appendChild(this.appNodes.maxWordsPerLineInput);
-    controlsGrid.appendChild(maxWordsPerLineContainer);
+    // Scroll Speed
+    const scrollSpeedGroup = this.createSettingsGroup();
+    this.scrollSpeedLabel = document.createElement("label");
+    this.scrollSpeedLabel.className = "settings-label";
+    this.scrollSpeedLabel.textContent = formatLabel('scrollSpeed', `${this.state.scrollSpeed} `, 'linesPerSec');
 
-    // Flip Screen
-    const flipContainer = document.createElement("div");
+    this.scrollSpeedInput = document.createElement("input");
+    this.scrollSpeedInput.type = "range";
+    this.scrollSpeedInput.min = CONFIG.SCROLL_SPEED.MIN.toString();
+    this.scrollSpeedInput.max = CONFIG.SCROLL_SPEED.MAX.toString();
+    this.scrollSpeedInput.step = CONFIG.SCROLL_SPEED.STEP.toString();
+    this.scrollSpeedInput.value = this.state.scrollSpeed.toString();
+    this.scrollSpeedInput.addEventListener("input", () => {
+      this.state.scrollSpeed = parseFloat(this.scrollSpeedInput!.value);
+      this.state.scrollSpeed = Math.round(this.state.scrollSpeed * 10) / 10;
+      this.scrollSpeedLabel!.textContent = formatLabel('scrollSpeed', `${this.state.scrollSpeed} `, 'linesPerSec');
+      this.onStateChange();
+      document.dispatchEvent(new CustomEvent("speed-changed"));
+    });
 
-    this.appNodes.flipLabel.className = "block text-sm font-medium text-gray-300";
-    this.appNodes.flipLabel.textContent = i18n.t('flipScreen');
+    scrollSpeedGroup.appendChild(this.scrollSpeedLabel);
+    scrollSpeedGroup.appendChild(this.scrollSpeedInput);
+    panel.appendChild(scrollSpeedGroup);
+  }
 
-    this.appNodes.flipBtn.id = "flip-btn";
-    this.appNodes.flipBtn.className =
-      "w-full p-2 rounded bg-blue-600 hover:bg-blue-700 text-white";
-    this.appNodes.flipBtn.textContent = this.state.isFlipped
-      ? i18n.t('unflip')
-      : i18n.t('flip');
+  private renderGeneralTab(panel: HTMLDivElement) {
+    // Language
+    const languageGroup = this.createSettingsGroup();
+    const languageLabel = document.createElement("label");
+    languageLabel.className = "settings-label";
+    languageLabel.textContent = i18n.t('language');
 
-    flipContainer.appendChild(this.appNodes.flipLabel);
-    flipContainer.appendChild(this.appNodes.flipBtn);
-    controlsGrid.appendChild(flipContainer);
-
-    // Language Selector
-    const languageContainer = document.createElement("div");
-
-    this.appNodes.languageLabel.htmlFor = "language-select";
-    this.appNodes.languageLabel.className = "block text-sm font-medium text-gray-300";
-    this.appNodes.languageLabel.textContent = i18n.t('language');
-
-    this.appNodes.languageSelect.id = "language-select";
-    this.appNodes.languageSelect.className =
-      "w-full p-2 rounded bg-gray-700 text-white";
+    const languageSelect = document.createElement("select");
+    languageSelect.className = "settings-select";
 
     i18n.getAvailableLocales().forEach((locale) => {
       const option = document.createElement("option");
@@ -1079,77 +1326,372 @@ class TeleprompterControls {
       if (i18n.locale === locale.code) {
         option.selected = true;
       }
-      this.appNodes.languageSelect.appendChild(option);
+      languageSelect.appendChild(option);
     });
 
-    languageContainer.appendChild(this.appNodes.languageLabel);
-    languageContainer.appendChild(this.appNodes.languageSelect);
-    controlsGrid.appendChild(languageContainer);
+    languageSelect.addEventListener("change", () => {
+      i18n.setLocale(languageSelect.value as Locale);
+    });
 
-    // Play/Pause Button Container (Should be outside the grid)
-    const playPauseContainer = document.createElement("div");
-    playPauseContainer.className = "mt-4 text-center col-span-2 md:col-span-4"; // Spanning full width below grid
+    languageGroup.appendChild(languageLabel);
+    languageGroup.appendChild(languageSelect);
+    panel.appendChild(languageGroup);
 
-    this.appNodes.playPauseBtn.id = "play-pause-btn";
-    this.appNodes.playPauseBtn.className =
-      "px-6 py-2 rounded bg-green-600 hover:bg-green-700 text-white";
-    this.appNodes.playPauseBtn.textContent = this.state.isScrolling
-      ? i18n.t('pause')
-      : i18n.t('play');
-
-    // Create Back to Top button
-    this.appNodes.backToTopBtn.id = "back-to-top-btn";
-    this.appNodes.backToTopBtn.className =
-      "px-6 py-2 rounded bg-blue-600 hover:bg-blue-700 text-white ml-4";
-    this.appNodes.backToTopBtn.textContent = i18n.t('backToTop');
-
-    playPauseContainer.appendChild(this.appNodes.playPauseBtn); // Add play/pause button to its container
-    playPauseContainer.appendChild(this.appNodes.backToTopBtn); // Add back to top button to the container
-
-    // Fullscreen Button (Positioned absolutely within the main element)
-    this.appNodes.fullscreenBtn.id = "fullscreen-btn";
-    this.appNodes.fullscreenBtn.className =
-      "absolute bottom-4 right-4 p-2 rounded bg-gray-600 hover:bg-gray-700 text-white w-8 h-8 flex items-center justify-center";
-    this.appNodes.fullscreenBtn.setAttribute("aria-label", i18n.t('toggleFullscreen'));
-    this.updateFullscreenButtonIcon();
-
-    // Help Button (Positioned absolutely on the left)
-    this.appNodes.helpBtn.className = "help-btn";
-    this.appNodes.helpBtn.setAttribute("aria-label", i18n.t('helpKeyboardShortcuts'));
-    this.appNodes.helpBtn.textContent = "?";
-
-    // Create help modal
-    this.createHelpModal();
-
-    // Assemble the controls panel
-    this.element.appendChild(controlsGrid);
-    this.element.appendChild(playPauseContainer);
-    this.element.appendChild(this.appNodes.fullscreenBtn);
-    this.element.appendChild(this.appNodes.helpBtn);
-    this.element.appendChild(this.appNodes.helpModal);
+    // Back to Top button
+    const backToTopGroup = this.createSettingsGroup();
+    const backToTopBtn = document.createElement("button");
+    backToTopBtn.className = "drawer-close-btn";
+    backToTopBtn.style.marginTop = "0";
+    backToTopBtn.textContent = i18n.t('backToTop');
+    backToTopBtn.addEventListener("click", () => {
+      document.dispatchEvent(new CustomEvent("back-to-top"));
+      this.close();
+    });
+    backToTopGroup.appendChild(backToTopBtn);
+    panel.appendChild(backToTopGroup);
   }
 
-  private createHelpModal() {
-    this.appNodes.helpModal.className = "help-modal-overlay";
-    this.appNodes.helpModal.setAttribute("role", "dialog");
-    this.appNodes.helpModal.setAttribute("aria-labelledby", "help-modal-title");
+  private createSettingsGroup(): HTMLDivElement {
+    const group = document.createElement("div");
+    group.className = "settings-group";
+    return group;
+  }
 
-    // Use event delegation for close button (handles dynamically updated content)
-    this.appNodes.helpModal.addEventListener("click", (e) => {
+  private switchTab(tabId: string) {
+    this.activeTab = tabId;
+
+    // Update tab buttons
+    this.tabButtons.forEach((btn) => {
+      btn.classList.toggle("active", btn.dataset.tab === tabId);
+    });
+
+    // Update panels
+    this.drawer.querySelectorAll(".drawer-tab-panel").forEach((panel) => {
+      panel.classList.toggle("active", (panel as HTMLElement).dataset.panel === tabId);
+    });
+  }
+
+  private updateLabels() {
+    // Update tab labels
+    const tabNames = [i18n.t('display'), i18n.t('typography'), i18n.t('general')];
+    this.tabButtons.forEach((btn, index) => {
+      btn.textContent = tabNames[index];
+    });
+
+    // Update close button
+    if (this.closeBtn) {
+      this.closeBtn.textContent = i18n.t('closeDrawer');
+    }
+
+    // Update other labels
+    if (this.fontSizeLabel) {
+      this.fontSizeLabel.textContent = formatLabel('fontSize', this.state.fontSize, 'px');
+    }
+    if (this.lineSpacingLabel) {
+      this.lineSpacingLabel.textContent = formatLabel('lineSpacing', this.state.lineSpacing);
+    }
+    if (this.letterSpacingLabel) {
+      this.letterSpacingLabel.textContent = formatLabel('letterSpacing', this.state.letterSpacing, 'px');
+    }
+    if (this.scrollSpeedLabel) {
+      this.scrollSpeedLabel.textContent = formatLabel('scrollSpeed', `${this.state.scrollSpeed} `, 'linesPerSec');
+    }
+    if (this.maxWordsPerLineLabel) {
+      this.maxWordsPerLineLabel.textContent = formatLabel('maxWordsPerLine', this.state.maxWordsPerLine);
+    }
+  }
+
+  // Sync input values from state (called when settings change via keyboard shortcuts)
+  private syncInputsFromState() {
+    if (this.fontSizeInput) {
+      this.fontSizeInput.value = this.state.fontSize.toString();
+    }
+    if (this.fontSizeLabel) {
+      this.fontSizeLabel.textContent = formatLabel('fontSize', this.state.fontSize, 'px');
+    }
+    if (this.lineSpacingInput) {
+      this.lineSpacingInput.value = this.state.lineSpacing.toString();
+    }
+    if (this.lineSpacingLabel) {
+      this.lineSpacingLabel.textContent = formatLabel('lineSpacing', this.state.lineSpacing);
+    }
+    if (this.letterSpacingInput) {
+      this.letterSpacingInput.value = this.state.letterSpacing.toString();
+    }
+    if (this.letterSpacingLabel) {
+      this.letterSpacingLabel.textContent = formatLabel('letterSpacing', this.state.letterSpacing, 'px');
+    }
+  }
+
+  open() {
+    this.isOpen = true;
+    this.backdrop.classList.add("open");
+    this.drawer.classList.add("open");
+    // Notify that drawer is open (for teleprompter container resizing)
+    document.dispatchEvent(new CustomEvent("drawer-opened"));
+  }
+
+  close() {
+    this.isOpen = false;
+    this.backdrop.classList.remove("open");
+    this.drawer.classList.remove("open");
+    document.dispatchEvent(new CustomEvent("drawer-closed"));
+  }
+
+  toggle() {
+    if (this.isOpen) {
+      this.close();
+    } else {
+      this.open();
+    }
+  }
+
+  updateScrollSpeed(speed: number) {
+    if (this.scrollSpeedInput) {
+      this.scrollSpeedInput.value = speed.toString();
+    }
+    if (this.scrollSpeedLabel) {
+      this.scrollSpeedLabel.textContent = formatLabel('scrollSpeed', `${speed} `, 'linesPerSec');
+    }
+  }
+
+  destroy() {
+    if (this.i18nUnsubscribe) {
+      this.i18nUnsubscribe();
+      this.i18nUnsubscribe = null;
+    }
+    if (this.settingsChangedHandler) {
+      document.removeEventListener("settings-changed", this.settingsChangedHandler);
+      this.settingsChangedHandler = null;
+    }
+    if (this.backdrop && this.backdrop.parentNode) {
+      this.backdrop.parentNode.removeChild(this.backdrop);
+    }
+    if (this.drawer && this.drawer.parentNode) {
+      this.drawer.parentNode.removeChild(this.drawer);
+    }
+  }
+}
+
+// Script Editor Component (Full-screen overlay)
+class ScriptEditor {
+  private overlay: HTMLDivElement;
+  private textarea: HTMLTextAreaElement;
+  private charCount: HTMLDivElement;
+  private state: TeleprompterState;
+  private onSave: () => void;
+  private isOpen: boolean = false;
+  private escKeyHandler: ((e: KeyboardEvent) => void) | null = null;
+  private i18nUnsubscribe: (() => void) | null = null;
+  private closeBtn: HTMLButtonElement;
+  private titleSpan: HTMLSpanElement;
+  private saveBtn: HTMLButtonElement;
+
+  constructor(
+    container: HTMLElement,
+    state: TeleprompterState,
+    onSave: () => void
+  ) {
+    this.state = state;
+    this.onSave = onSave;
+
+    // Create overlay
+    this.overlay = document.createElement("div");
+    this.overlay.className = "script-editor-overlay";
+
+    // Header
+    const header = document.createElement("div");
+    header.className = "editor-header";
+
+    this.closeBtn = document.createElement("button");
+    this.closeBtn.className = "editor-close-btn";
+    this.closeBtn.innerHTML = closeIcon;
+    const closeText = document.createElement("span");
+    closeText.textContent = i18n.t('close');
+    this.closeBtn.appendChild(closeText);
+    this.closeBtn.addEventListener("click", () => this.close());
+
+    this.titleSpan = document.createElement("span");
+    this.titleSpan.className = "editor-title";
+    this.titleSpan.textContent = i18n.t('editScript');
+
+    this.saveBtn = document.createElement("button");
+    this.saveBtn.className = "editor-save-btn";
+    this.saveBtn.textContent = i18n.t('saveAndClose');
+    this.saveBtn.addEventListener("click", () => this.saveAndClose());
+
+    header.appendChild(this.closeBtn);
+    header.appendChild(this.titleSpan);
+    header.appendChild(this.saveBtn);
+    this.overlay.appendChild(header);
+
+    // Textarea container
+    const textareaContainer = document.createElement("div");
+    textareaContainer.className = "editor-textarea-container";
+
+    this.textarea = document.createElement("textarea");
+    this.textarea.className = "editor-textarea";
+    this.textarea.value = this.state.text;
+    this.textarea.placeholder = i18n.t('script');
+    this.textarea.addEventListener("input", () => {
+      this.updateCharCount();
+    });
+
+    this.charCount = document.createElement("div");
+    this.charCount.className = "editor-char-count";
+    this.updateCharCount();
+
+    textareaContainer.appendChild(this.textarea);
+    textareaContainer.appendChild(this.charCount);
+    this.overlay.appendChild(textareaContainer);
+
+    container.appendChild(this.overlay);
+
+    // Subscribe to locale changes
+    this.i18nUnsubscribe = i18n.onChange(() => {
+      this.updateLabels();
+    });
+  }
+
+  private updateLabels() {
+    this.titleSpan.textContent = i18n.t('editScript');
+    this.saveBtn.textContent = i18n.t('saveAndClose');
+    // Update close button text
+    const closeText = this.closeBtn.querySelector("span");
+    if (closeText) {
+      closeText.textContent = i18n.t('close');
+    }
+    this.textarea.placeholder = i18n.t('script');
+    this.updateCharCount();
+  }
+
+  private updateCharCount() {
+    const text = this.textarea.value;
+    const chars = text.length;
+    const words = text.trim() ? text.trim().split(/\s+/).length : 0;
+    const lines = text.split("\n").length;
+    this.charCount.textContent = `${chars} ${i18n.t('chars')} · ${words} ${i18n.t('words')} · ${lines} ${i18n.t('lines')}`;
+  }
+
+  open() {
+    this.isOpen = true;
+    this.textarea.value = this.state.text;
+    this.updateCharCount();
+    this.overlay.classList.add("open");
+
+    // Focus textarea after animation
+    setTimeout(() => {
+      this.textarea.focus();
+    }, 350);
+
+    // Setup ESC key handler
+    this.escKeyHandler = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && this.isOpen) {
+        this.close();
+      }
+    };
+    document.addEventListener("keydown", this.escKeyHandler);
+  }
+
+  close() {
+    // Auto-save on close (only if not already saved by saveAndClose)
+    if (this.isOpen) {
+      this.save();
+    }
+    this.isOpen = false;
+    this.overlay.classList.remove("open");
+
+    if (this.escKeyHandler) {
+      document.removeEventListener("keydown", this.escKeyHandler);
+      this.escKeyHandler = null;
+    }
+  }
+
+  private save() {
+    this.state.text = this.textarea.value;
+    this.state.scriptEnded = false;
+
+    // Save to localStorage
+    try {
+      localStorage.setItem(CONFIG.STORAGE_KEY, this.state.text);
+    } catch (e) {
+      console.warn("Could not save script to localStorage:", e);
+    }
+
+    this.onSave();
+  }
+
+  private saveAndClose() {
+    this.save();
+    this.isOpen = false; // Prevent close() from saving again
+    this.close();
+  }
+
+  destroy() {
+    if (this.escKeyHandler) {
+      document.removeEventListener("keydown", this.escKeyHandler);
+      this.escKeyHandler = null;
+    }
+    if (this.i18nUnsubscribe) {
+      this.i18nUnsubscribe();
+      this.i18nUnsubscribe = null;
+    }
+    if (this.overlay && this.overlay.parentNode) {
+      this.overlay.parentNode.removeChild(this.overlay);
+    }
+  }
+}
+
+// Help Modal Component (moved from TeleprompterControls)
+class HelpModal {
+  private overlay: HTMLDivElement;
+  private isVisible: boolean = false;
+  private escKeyHandler: ((e: KeyboardEvent) => void) | null = null;
+  private questionKeyHandler: ((e: KeyboardEvent) => void) | null = null;
+  private i18nUnsubscribe: (() => void) | null = null;
+
+  constructor(container: HTMLElement) {
+    this.overlay = document.createElement("div");
+    this.overlay.className = "help-modal-overlay";
+    this.overlay.setAttribute("role", "dialog");
+    this.overlay.setAttribute("aria-labelledby", "help-modal-title");
+
+    this.overlay.addEventListener("click", (e) => {
       const target = e.target as HTMLElement;
-      if (target.classList.contains("help-modal-close") || target === this.appNodes.helpModal) {
-        this.hideHelpModal();
+      if (target.classList.contains("help-modal-close") || target === this.overlay) {
+        this.hide();
       }
     });
 
-    this.updateHelpModalContent();
+    this.renderContent();
+    container.appendChild(this.overlay);
+
+    // Setup global keyboard shortcuts
+    this.setupGlobalKeyboardShortcuts();
+
+    // Subscribe to locale changes
+    this.i18nUnsubscribe = i18n.onChange(() => {
+      this.renderContent();
+    });
   }
 
-  private updateHelpModalContent() {
-    // Clear existing content
-    this.appNodes.helpModal.replaceChildren();
+  private setupGlobalKeyboardShortcuts() {
+    this.questionKeyHandler = (e: KeyboardEvent) => {
+      // Don't trigger if typing in an input
+      if (e.target instanceof HTMLTextAreaElement || e.target instanceof HTMLInputElement) {
+        return;
+      }
+      if (e.key === "?" || (e.key === "/" && e.shiftKey)) {
+        e.preventDefault();
+        this.show();
+      }
+    };
+    document.addEventListener("keydown", this.questionKeyHandler);
+  }
 
-    // Build modal using DOM methods (XSS-safe)
+  private renderContent() {
+    this.overlay.replaceChildren();
+
     const modal = document.createElement("div");
     modal.className = "help-modal";
 
@@ -1279,7 +1821,7 @@ class TeleprompterControls {
     footer.appendChild(link);
 
     modal.appendChild(footer);
-    this.appNodes.helpModal.appendChild(modal);
+    this.overlay.appendChild(modal);
   }
 
   private createHelpSection(title: string): HTMLDivElement {
@@ -1291,241 +1833,66 @@ class TeleprompterControls {
     return section;
   }
 
-  private showHelpModal() {
-    this.appNodes.helpModal.classList.add("visible");
-    // Focus the close button for accessibility
-    const closeBtn = this.appNodes.helpModal.querySelector(".help-modal-close") as HTMLButtonElement;
+  show() {
+    this.isVisible = true;
+    this.overlay.classList.add("visible");
+
+    // Focus close button for accessibility
+    const closeBtn = this.overlay.querySelector(".help-modal-close") as HTMLButtonElement;
     if (closeBtn) closeBtn.focus();
-  }
 
-  private hideHelpModal() {
-    this.appNodes.helpModal.classList.remove("visible");
-  }
-
-  setupEventListeners() {
-    // Script input with auto-save
-    this.appNodes.scriptInput.addEventListener("input", () => {
-      this.state.text = this.appNodes.scriptInput.value;
-      this.state.scriptEnded = false; // Reset flag on text change
-      // Save to localStorage
-      try {
-        localStorage.setItem(CONFIG.STORAGE_KEY, this.state.text);
-      } catch (e) {
-        // localStorage might be full or disabled
-        console.warn("Could not save script to localStorage:", e);
-      }
-      this.onStateChange();
-    });
-
-    // Font family
-    this.appNodes.fontFamilySelect.addEventListener("change", () => {
-      this.state.fontFamily = this.appNodes.fontFamilySelect.value;
-      this.onStateChange();
-    });
-
-    // Font size
-    this.appNodes.fontSizeInput.addEventListener("input", () => {
-      this.state.fontSize = this.appNodes.fontSizeInput.valueAsNumber;
-      this.onStateChange();
-      this.appNodes.fontSizeLabel.textContent = formatLabel('fontSize', this.state.fontSize, 'px');
-    });
-
-    // Font color
-    this.appNodes.fontColorInput.addEventListener("input", () => {
-      this.state.fontColor = this.appNodes.fontColorInput.value;
-      this.onStateChange();
-    });
-
-    // Background color
-    this.appNodes.bgColorInput.addEventListener("input", () => {
-      this.state.backgroundColor = this.appNodes.bgColorInput.value;
-      this.onStateChange();
-    });
-
-    // Line spacing
-    this.appNodes.lineSpacingInput.addEventListener("input", () => {
-      this.state.lineSpacing = parseFloat(this.appNodes.lineSpacingInput.value);
-      this.onStateChange();
-      this.appNodes.lineSpacingLabel.textContent = formatLabel('lineSpacing', this.state.lineSpacing);
-    });
-
-    // Letter spacing
-    this.appNodes.letterSpacingInput.addEventListener("input", () => {
-      this.state.letterSpacing = this.appNodes.letterSpacingInput.valueAsNumber;
-      this.onStateChange();
-      this.appNodes.letterSpacingLabel.textContent = formatLabel('letterSpacing', this.state.letterSpacing, 'px');
-    });
-
-    // Scroll speed
-    this.appNodes.scrollSpeedInput.addEventListener("input", () => {
-      this.state.scrollSpeed = parseFloat(this.appNodes.scrollSpeedInput.value);
-      // Round to 1 decimal place for cleaner display
-      this.state.scrollSpeed = Math.round(this.state.scrollSpeed * 10) / 10;
-      this.onStateChange();
-      this.appNodes.scrollSpeedLabel.textContent = formatLabel('scrollSpeed', `${this.state.scrollSpeed} `, 'linesPerSec');
-    });
-
-    // Max Words Per Line with NaN validation
-    this.appNodes.maxWordsPerLineInput.addEventListener("input", () => {
-      const value = this.appNodes.maxWordsPerLineInput.valueAsNumber;
-      // Validate: use 0 if NaN or negative
-      this.state.maxWordsPerLine = Number.isNaN(value) || value < 0 ? 0 : Math.floor(value);
-      this.onStateChange();
-      this.appNodes.maxWordsPerLineLabel.textContent = formatLabel('maxWordsPerLine', this.state.maxWordsPerLine);
-    });
-
-    // Flip screen button
-    this.appNodes.flipBtn.addEventListener("click", () => {
-      this.state.isFlipped = !this.state.isFlipped;
-      this.onStateChange();
-      this.appNodes.flipBtn.textContent = this.state.isFlipped
-        ? i18n.t('unflip')
-        : i18n.t('flip');
-    });
-
-    // Language selector
-    this.appNodes.languageSelect.addEventListener("change", () => {
-      const newLocale = this.appNodes.languageSelect.value as Locale;
-      i18n.setLocale(newLocale);
-    });
-
-    // Play/Pause button
-    this.appNodes.playPauseBtn.addEventListener("click", () => {
-      const event = new CustomEvent("toggle-scrolling");
-      document.dispatchEvent(event);
-    });
-
-    // Back to Top button
-    this.appNodes.backToTopBtn.addEventListener("click", () => {
-      const event = new CustomEvent("back-to-top");
-      document.dispatchEvent(event);
-    });
-
-    // Fullscreen button
-    this.appNodes.fullscreenBtn.addEventListener("click", () => {
-      this.toggleFullscreen();
-    });
-
-    // Help button
-    this.appNodes.helpBtn.addEventListener("click", () => {
-      this.showHelpModal();
-    });
-
-    // Listen for scrolling state changes with proper typing
-    this.scrollingToggledHandler = (e: CustomEvent<ScrollingToggledDetail>) => {
-      if (e.detail.isCountingDown) {
-        this.appNodes.playPauseBtn.textContent = i18n.t('cancel');
-      } else if (e.detail.isScrolling) {
-        this.appNodes.playPauseBtn.textContent = i18n.t('pause');
-      } else {
-        this.appNodes.playPauseBtn.textContent = i18n.t('play');
+    // Setup ESC key handler
+    this.escKeyHandler = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && this.isVisible) {
+        this.hide();
       }
     };
-    document.addEventListener("scrolling-toggled", this.scrollingToggledHandler as EventListener);
-
-    // Keyboard shortcut to open help (?) and close (Escape)
-    this.helpKeyHandler = (e: KeyboardEvent) => {
-      // Don't trigger if typing in an input
-      if (e.target instanceof HTMLTextAreaElement || e.target instanceof HTMLInputElement) {
-        return;
-      }
-      if (e.key === "?" || (e.key === "/" && e.shiftKey)) {
-        e.preventDefault();
-        this.showHelpModal();
-      }
-      if (e.key === "Escape" && this.appNodes.helpModal.classList.contains("visible")) {
-        this.hideHelpModal();
-      }
-    };
-    document.addEventListener("keydown", this.helpKeyHandler);
+    document.addEventListener("keydown", this.escKeyHandler);
   }
 
-  private toggleFullscreen() {
-    const appRoot = document.documentElement; // Target the whole page for fullscreen
+  hide() {
+    this.isVisible = false;
+    this.overlay.classList.remove("visible");
 
-    if (!document.fullscreenElement) {
-      appRoot.requestFullscreen().catch((err) => {
-        alert(
-          `${i18n.t('fullscreenError')}: ${err.message} (${err.name})`
-        );
-      });
-    } else {
-      if (document.exitFullscreen) {
-        document.exitFullscreen();
-      }
-    }
-    // No need to manually update icon here, fullscreenchange listener handles it
-  }
-
-  private updateFullscreenButtonIcon() {
-    if (this.appNodes.fullscreenBtn) {
-      // Set innerHTML to the appropriate SVG string
-      this.appNodes.fullscreenBtn.innerHTML = document.fullscreenElement
-        ? fullscreenExitIcon
-        : fullscreenEnterIcon;
+    if (this.escKeyHandler) {
+      document.removeEventListener("keydown", this.escKeyHandler);
+      this.escKeyHandler = null;
     }
   }
 
-  // Listen for fullscreen changes (e.g., user pressing ESC)
-  private setupFullscreenListener() {
-    this.fullscreenChangeHandler = () => {
-      this.updateFullscreenButtonIcon();
-      this.handleFullscreenPanelVisibility();
-    };
-    document.addEventListener("fullscreenchange", this.fullscreenChangeHandler);
-  }
-
-  private handleFullscreenPanelVisibility() {
-    // Hide the controls panel except the fullscreen button in fullscreen mode
-    const isFullscreen = !!document.fullscreenElement;
-    // Hide all children except the fullscreen button
-    Array.from(this.element.children).forEach((child) => {
-      if (child === this.appNodes.fullscreenBtn) {
-        (child as HTMLElement).style.display = "flex";
-      } else {
-        (child as HTMLElement).style.display = isFullscreen ? "none" : "";
-      }
-    });
-    // Always show the fullscreen button
-    if (this.appNodes.fullscreenBtn) {
-      this.appNodes.fullscreenBtn.style.display = "flex";
-    }
-  }
-
-  // Cleanup method to remove event listeners
   destroy() {
-    if (this.scrollingToggledHandler) {
-      document.removeEventListener("scrolling-toggled", this.scrollingToggledHandler as EventListener);
-      this.scrollingToggledHandler = null;
+    if (this.escKeyHandler) {
+      document.removeEventListener("keydown", this.escKeyHandler);
+      this.escKeyHandler = null;
     }
-    if (this.fullscreenChangeHandler) {
-      document.removeEventListener("fullscreenchange", this.fullscreenChangeHandler);
-      this.fullscreenChangeHandler = null;
-    }
-    if (this.helpKeyHandler) {
-      document.removeEventListener("keydown", this.helpKeyHandler);
-      this.helpKeyHandler = null;
+    if (this.questionKeyHandler) {
+      document.removeEventListener("keydown", this.questionKeyHandler);
+      this.questionKeyHandler = null;
     }
     if (this.i18nUnsubscribe) {
       this.i18nUnsubscribe();
       this.i18nUnsubscribe = null;
     }
-
-    // Remove DOM element
-    if (this.element && this.element.parentNode) {
-      this.element.parentNode.removeChild(this.element);
+    if (this.overlay && this.overlay.parentNode) {
+      this.overlay.parentNode.removeChild(this.overlay);
     }
   }
 }
 
-// Main Teleprompter App
+// Main Teleprompter App (New UI with Floating Toolbar + Drawer)
 class TeleprompterApp {
   private appElement: HTMLDivElement;
   private mainContainer: HTMLDivElement | null = null;
   private state: TeleprompterState;
   private display: TeleprompterDisplay | null = null;
-  private controls: TeleprompterControls | null = null;
+  private toolbar: FloatingToolbar | null = null;
+  private drawer: SettingsDrawer | null = null;
+  private editor: ScriptEditor | null = null;
+  private helpModal: HelpModal | null = null;
   private toggleScrollingHandler: (() => void) | null = null;
+  private speedChangedHandler: (() => void) | null = null;
+  private drawerOpenedHandler: (() => void) | null = null;
+  private drawerClosedHandler: (() => void) | null = null;
 
   constructor(appElement: HTMLDivElement) {
     this.appElement = appElement;
@@ -1556,15 +1923,33 @@ class TeleprompterApp {
   private initializeComponents() {
     if (!this.mainContainer) return;
 
-    // Initialize display component
+    // Initialize display component (teleprompter text display)
     this.display = new TeleprompterDisplay(this.mainContainer, this.state);
 
-    // Initialize controls component
-    this.controls = new TeleprompterControls(this.mainContainer, this.state, () => {
+    // Initialize floating toolbar
+    this.toolbar = new FloatingToolbar(document.body, this.state, {
+      onEditClick: () => this.editor?.open(),
+      onSettingsClick: () => this.drawer?.toggle(),
+      onHelpClick: () => this.helpModal?.show(),
+    });
+
+    // Initialize settings drawer
+    this.drawer = new SettingsDrawer(document.body, this.state, () => {
       if (this.display) {
         this.display.updateStyles();
       }
     });
+
+    // Initialize script editor
+    this.editor = new ScriptEditor(document.body, this.state, () => {
+      if (this.display) {
+        this.display.updateTelepromptText();
+        this.display.updateStyles();
+      }
+    });
+
+    // Initialize help modal
+    this.helpModal = new HelpModal(document.body);
   }
 
   private setupComponentCommunication() {
@@ -1575,6 +1960,34 @@ class TeleprompterApp {
       }
     };
     document.addEventListener("toggle-scrolling", this.toggleScrollingHandler);
+
+    // Handle speed changed event (sync between toolbar and drawer)
+    this.speedChangedHandler = () => {
+      if (this.toolbar) {
+        this.toolbar.updateSpeed(this.state.scrollSpeed);
+      }
+      if (this.drawer) {
+        this.drawer.updateScrollSpeed(this.state.scrollSpeed);
+      }
+    };
+    document.addEventListener("speed-changed", this.speedChangedHandler);
+
+    // Handle drawer open/close for teleprompter container resizing
+    this.drawerOpenedHandler = () => {
+      const container = this.mainContainer?.querySelector(".teleprompter-container");
+      if (container) {
+        container.classList.add("drawer-open");
+      }
+    };
+    document.addEventListener("drawer-opened", this.drawerOpenedHandler);
+
+    this.drawerClosedHandler = () => {
+      const container = this.mainContainer?.querySelector(".teleprompter-container");
+      if (container) {
+        container.classList.remove("drawer-open");
+      }
+    };
+    document.addEventListener("drawer-closed", this.drawerClosedHandler);
   }
 
   // Cleanup method to destroy all components
@@ -1583,13 +1996,37 @@ class TeleprompterApp {
       document.removeEventListener("toggle-scrolling", this.toggleScrollingHandler);
       this.toggleScrollingHandler = null;
     }
+    if (this.speedChangedHandler) {
+      document.removeEventListener("speed-changed", this.speedChangedHandler);
+      this.speedChangedHandler = null;
+    }
+    if (this.drawerOpenedHandler) {
+      document.removeEventListener("drawer-opened", this.drawerOpenedHandler);
+      this.drawerOpenedHandler = null;
+    }
+    if (this.drawerClosedHandler) {
+      document.removeEventListener("drawer-closed", this.drawerClosedHandler);
+      this.drawerClosedHandler = null;
+    }
     if (this.display) {
       this.display.destroy();
       this.display = null;
     }
-    if (this.controls) {
-      this.controls.destroy();
-      this.controls = null;
+    if (this.toolbar) {
+      this.toolbar.destroy();
+      this.toolbar = null;
+    }
+    if (this.drawer) {
+      this.drawer.destroy();
+      this.drawer = null;
+    }
+    if (this.editor) {
+      this.editor.destroy();
+      this.editor = null;
+    }
+    if (this.helpModal) {
+      this.helpModal.destroy();
+      this.helpModal = null;
     }
     if (this.mainContainer && this.mainContainer.parentNode) {
       this.mainContainer.parentNode.removeChild(this.mainContainer);
