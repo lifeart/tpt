@@ -705,7 +705,7 @@ Drücken Sie die Wiedergabe-Taste, um das Scrollen zu starten.`,
   },
 };
 
-const LOCALE_STORAGE_KEY = 'teleprompter_locale';
+const LOCALE_STORAGE_KEY = 'tpt/locale';
 
 class I18n {
   private currentLocale: Locale;

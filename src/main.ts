@@ -36,10 +36,48 @@ const CONFIG = {
   ACTIVE_LINE_UPDATE_INTERVAL: 100, // ms
   END_THRESHOLD: 5, // pixels from end to trigger stop
   SPACER_HEIGHT: "50vh",
-  STORAGE_KEY: "teleprompter_script",
+  STORAGE_KEY: "tpt/script",
   COUNTDOWN_SECONDS: 3, // 3-2-1 countdown before scrolling
   RAMP_DURATION: 1000, // ms for speed ramp up/down
 } as const;
+
+// Settings persistence with tpt/ prefix
+const SETTINGS_STORAGE_KEY = "tpt/settings";
+
+interface PersistedSettings {
+  fontSize: number;
+  fontFamily: string;
+  fontColor: string;
+  backgroundColor: string;
+  lineSpacing: number;
+  letterSpacing: number;
+  scrollSpeed: number;
+  isFlipped: boolean;
+  isFlippedVertical: boolean;
+  maxWordsPerLine: number;
+  readingGuideEnabled: boolean;
+  cuePoints: number[];
+}
+
+function loadSettings(): Partial<PersistedSettings> | null {
+  try {
+    const saved = localStorage.getItem(SETTINGS_STORAGE_KEY);
+    if (saved) {
+      return JSON.parse(saved) as Partial<PersistedSettings>;
+    }
+  } catch (e) {
+    console.warn("Could not load settings from localStorage:", e);
+  }
+  return null;
+}
+
+function saveSettings(settings: PersistedSettings): void {
+  try {
+    localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(settings));
+  } catch (e) {
+    console.warn("Could not save settings to localStorage:", e);
+  }
+}
 
 const systemFontStack =
   '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol"';
@@ -186,6 +224,7 @@ class TeleprompterState {
     const savedScript = localStorage.getItem(CONFIG.STORAGE_KEY);
     const defaultText = i18n.t('defaultScript');
 
+    // Set defaults first
     this.text = savedScript || `${defaultText}\n\n${defaultText}\n\n${defaultText}`;
     this.fontSize = CONFIG.FONT_SIZE.DEFAULT;
     this.fontFamily = "System"; // Use display name, will be mapped to font stack
@@ -203,6 +242,50 @@ class TeleprompterState {
     this.maxWordsPerLine = CONFIG.MAX_WORDS_PER_LINE.DEFAULT;
     this.readingGuideEnabled = false;
     this.cuePoints = new Set();
+
+    // Restore saved settings with range validation
+    const saved = loadSettings();
+    if (saved) {
+      if (typeof saved.fontSize === 'number') {
+        this.fontSize = Math.max(CONFIG.FONT_SIZE.MIN, Math.min(CONFIG.FONT_SIZE.MAX, saved.fontSize));
+      }
+      if (typeof saved.fontFamily === 'string') this.fontFamily = saved.fontFamily;
+      if (typeof saved.fontColor === 'string') this.fontColor = saved.fontColor;
+      if (typeof saved.backgroundColor === 'string') this.backgroundColor = saved.backgroundColor;
+      if (typeof saved.lineSpacing === 'number') {
+        this.lineSpacing = Math.max(CONFIG.LINE_SPACING.MIN, Math.min(CONFIG.LINE_SPACING.MAX, saved.lineSpacing));
+      }
+      if (typeof saved.letterSpacing === 'number') {
+        this.letterSpacing = Math.max(CONFIG.LETTER_SPACING.MIN, Math.min(CONFIG.LETTER_SPACING.MAX, saved.letterSpacing));
+      }
+      if (typeof saved.scrollSpeed === 'number') {
+        this.scrollSpeed = Math.max(CONFIG.SCROLL_SPEED.MIN, Math.min(CONFIG.SCROLL_SPEED.MAX, saved.scrollSpeed));
+      }
+      if (typeof saved.isFlipped === 'boolean') this.isFlipped = saved.isFlipped;
+      if (typeof saved.isFlippedVertical === 'boolean') this.isFlippedVertical = saved.isFlippedVertical;
+      if (typeof saved.maxWordsPerLine === 'number') {
+        this.maxWordsPerLine = Math.max(0, Math.min(50, Math.floor(saved.maxWordsPerLine)));
+      }
+      if (typeof saved.readingGuideEnabled === 'boolean') this.readingGuideEnabled = saved.readingGuideEnabled;
+      if (Array.isArray(saved.cuePoints)) this.cuePoints = new Set(saved.cuePoints);
+    }
+  }
+
+  saveSettings(): void {
+    saveSettings({
+      fontSize: this.fontSize,
+      fontFamily: this.fontFamily,
+      fontColor: this.fontColor,
+      backgroundColor: this.backgroundColor,
+      lineSpacing: this.lineSpacing,
+      letterSpacing: this.letterSpacing,
+      scrollSpeed: this.scrollSpeed,
+      isFlipped: this.isFlipped,
+      isFlippedVertical: this.isFlippedVertical,
+      maxWordsPerLine: this.maxWordsPerLine,
+      readingGuideEnabled: this.readingGuideEnabled,
+      cuePoints: Array.from(this.cuePoints),
+    });
   }
 }
 
@@ -338,6 +421,7 @@ class TeleprompterDisplay {
           this.updateStyles();
           // Notify UI components to update their displays
           document.dispatchEvent(new CustomEvent("settings-changed"));
+          this.state.saveSettings();
         } else {
           // Left/Right: Scroll speed in lines per second
           if (e.key === "ArrowLeft") {
@@ -350,6 +434,7 @@ class TeleprompterDisplay {
 
           // Notify UI components to update their displays
           document.dispatchEvent(new CustomEvent("speed-changed"));
+          this.state.saveSettings();
         }
         e.preventDefault();
         return;
@@ -366,6 +451,7 @@ class TeleprompterDisplay {
           this.updateStyles();
           // Notify UI components to update their displays
           document.dispatchEvent(new CustomEvent("settings-changed"));
+          this.state.saveSettings();
         } else if (e.shiftKey && !this.state.isScrolling) {
           // Shift + Up/Down: Jump to prev/next cue point
           const cuePointsArray = Array.from(this.state.cuePoints).sort((a, b) => a - b);
@@ -452,6 +538,7 @@ class TeleprompterDisplay {
       this.state.cuePoints.add(lineIndex);
     }
     this.updateTelepromptText();
+    this.state.saveSettings();
   }
 
   private jumpToLine(lineIndex: number) {
@@ -1177,6 +1264,7 @@ class FloatingToolbar {
       this.state.scrollSpeed = Math.round(this.state.scrollSpeed * 10) / 10;
       this.updateSpeedDisplay();
       document.dispatchEvent(new CustomEvent("speed-changed"));
+      this.state.saveSettings();
     });
 
     this.speedPlusBtn.addEventListener("click", () => {
@@ -1184,6 +1272,7 @@ class FloatingToolbar {
       this.state.scrollSpeed = Math.round(this.state.scrollSpeed * 10) / 10;
       this.updateSpeedDisplay();
       document.dispatchEvent(new CustomEvent("speed-changed"));
+      this.state.saveSettings();
     });
 
     // Fullscreen button
@@ -1498,7 +1587,7 @@ class SettingsDrawer {
     fontColorInput.id = "font-color-input";
     fontColorLabel.htmlFor = "font-color-input";
     fontColorInput.setAttribute("aria-label", i18n.t('fontColor'));
-    fontColorInput.addEventListener("input", () => {
+    fontColorInput.addEventListener("change", () => {
       this.state.fontColor = fontColorInput.value;
       this.onStateChange();
     });
@@ -1518,7 +1607,7 @@ class SettingsDrawer {
     bgColorInput.id = "bg-color-input";
     bgColorLabel.htmlFor = "bg-color-input";
     bgColorInput.setAttribute("aria-label", i18n.t('backgroundColor'));
-    bgColorInput.addEventListener("input", () => {
+    bgColorInput.addEventListener("change", () => {
       this.state.backgroundColor = bgColorInput.value;
       this.onStateChange();
     });
@@ -2550,6 +2639,8 @@ class TeleprompterApp {
       if (this.toolbar) {
         this.toolbar.updateDuration();
       }
+      // Auto-save settings to localStorage
+      this.state.saveSettings();
     });
 
     // Initialize script editor
