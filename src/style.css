@@ -137,6 +137,17 @@ body {
   contain: content; /* Limit repaint area */
 }
 
+/* Cue point indicator */
+.line.cue-point::before {
+  content: "●";
+  position: absolute;
+  left: -2.5em;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--apple-system-orange);
+  font-size: 0.6em;
+}
+
 .active-line {
   position: relative;
   z-index: 1;
@@ -160,6 +171,45 @@ body {
 .active-line::after {
   content: "▶";
   right: -2em;
+}
+
+/* Reading guide / focus area */
+.reading-guide {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  height: 3em;
+  pointer-events: none;
+  z-index: 10;
+  display: none;
+}
+
+.reading-guide.enabled {
+  display: block;
+}
+
+/* Semi-transparent bars above and below the focus area */
+.reading-guide::before,
+.reading-guide::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  pointer-events: none;
+}
+
+.reading-guide::before {
+  bottom: 100%;
+  height: 50vh;
+  background: linear-gradient(to top, transparent 0%, rgba(0, 0, 0, 0.6) 5%);
+}
+
+.reading-guide::after {
+  top: 100%;
+  height: 50vh;
+  background: linear-gradient(to bottom, transparent 0%, rgba(0, 0, 0, 0.6) 5%);
 }
 
 /* Countdown overlay - Apple style */
@@ -596,6 +646,21 @@ button {
   letter-spacing: -0.2px;
 }
 
+/* Duration display in toolbar */
+.toolbar-duration {
+  display: flex;
+  align-items: center;
+  padding: 6px 12px;
+  background: var(--apple-fill-tertiary);
+  border-radius: var(--radius-pill);
+  font-size: var(--font-xs);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  color: var(--apple-text-secondary);
+  letter-spacing: -0.2px;
+  white-space: nowrap;
+}
+
 /* ============================================
    SETTINGS DRAWER (Apple-style sheet)
    ============================================ */
@@ -960,6 +1025,42 @@ button {
   outline-offset: 2px;
 }
 
+/* Editor toolbar for import/export */
+.editor-toolbar {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.editor-toolbar-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 16px;
+  border-radius: var(--radius-md);
+  border: none;
+  background: var(--apple-fill-secondary);
+  color: var(--apple-system-blue);
+  font-size: var(--font-sm);
+  font-weight: 500;
+  letter-spacing: -0.2px;
+  cursor: pointer;
+  transition: background var(--transition-fast), transform var(--transition-press);
+}
+
+.editor-toolbar-btn:hover {
+  background: var(--apple-fill-primary);
+}
+
+.editor-toolbar-btn:active {
+  transform: scale(0.98);
+}
+
+.editor-toolbar-btn:focus-visible {
+  outline: 2px solid var(--apple-system-blue);
+  outline-offset: 2px;
+}
+
 /* Editor textarea */
 .editor-textarea-container {
   flex: 1;
@@ -1109,6 +1210,11 @@ button {
   .speed-control .speed-value {
     min-width: 44px;
     font-size: 14px;
+  }
+
+  /* Hide duration on small phones to save space */
+  .toolbar-duration {
+    display: none;
   }
 
   .settings-drawer {

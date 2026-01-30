@@ -116,6 +116,26 @@ export interface Translations {
   chars: string;
   words: string;
   lines: string;
+
+  // Duration estimation
+  estimatedDuration: string;
+  minutes: string;
+  seconds: string;
+
+  // Reading guide
+  readingGuide: string;
+  readingGuideDescription: string;
+
+  // Cue points
+  cuePointAdded: string;
+  cuePointRemoved: string;
+  noCuePoints: string;
+  shortcutToggleCuePoint: string;
+  shortcutJumpToCuePoint: string;
+
+  // Import/Export
+  importScript: string;
+  exportScript: string;
 }
 
 const translations: Record<Locale, Translations> = {
@@ -214,6 +234,22 @@ Press the Play button to start scrolling.`,
     chars: 'chars',
     words: 'words',
     lines: 'lines',
+
+    estimatedDuration: 'Est. Duration',
+    minutes: 'min',
+    seconds: 'sec',
+
+    readingGuide: 'Reading Guide',
+    readingGuideDescription: 'Dims text outside focus area for easier tracking',
+
+    cuePointAdded: 'Cue point added',
+    cuePointRemoved: 'Cue point removed',
+    noCuePoints: 'No cue points',
+    shortcutToggleCuePoint: 'Toggle cue point (when paused)',
+    shortcutJumpToCuePoint: 'Jump to prev/next cue point',
+
+    importScript: 'Import',
+    exportScript: 'Export',
   },
 
   ru: {
@@ -311,6 +347,22 @@ Press the Play button to start scrolling.`,
     chars: 'символов',
     words: 'слов',
     lines: 'строк',
+
+    estimatedDuration: 'Расч. длительность',
+    minutes: 'мин',
+    seconds: 'сек',
+
+    readingGuide: 'Направляющая чтения',
+    readingGuideDescription: 'Затемняет текст вне зоны фокуса',
+
+    cuePointAdded: 'Метка добавлена',
+    cuePointRemoved: 'Метка удалена',
+    noCuePoints: 'Нет меток',
+    shortcutToggleCuePoint: 'Метка (на паузе)',
+    shortcutJumpToCuePoint: 'К пред./след. метке',
+
+    importScript: 'Импорт',
+    exportScript: 'Экспорт',
   },
 
   fr: {
@@ -408,6 +460,22 @@ Appuyez sur le bouton Lecture pour commencer le défilement.`,
     chars: 'caractères',
     words: 'mots',
     lines: 'lignes',
+
+    estimatedDuration: 'Durée est.',
+    minutes: 'min',
+    seconds: 'sec',
+
+    readingGuide: 'Guide de lecture',
+    readingGuideDescription: 'Atténue le texte hors de la zone de focus',
+
+    cuePointAdded: 'Point de repère ajouté',
+    cuePointRemoved: 'Point de repère supprimé',
+    noCuePoints: 'Aucun point de repère',
+    shortcutToggleCuePoint: 'Point de repère (en pause)',
+    shortcutJumpToCuePoint: 'Aller au repère préc./suiv.',
+
+    importScript: 'Importer',
+    exportScript: 'Exporter',
   },
 
   es: {
@@ -505,6 +573,22 @@ Presiona el botón Reproducir para comenzar el desplazamiento.`,
     chars: 'caracteres',
     words: 'palabras',
     lines: 'líneas',
+
+    estimatedDuration: 'Duración est.',
+    minutes: 'min',
+    seconds: 'seg',
+
+    readingGuide: 'Guía de lectura',
+    readingGuideDescription: 'Atenúa el texto fuera del área de enfoque',
+
+    cuePointAdded: 'Marcador añadido',
+    cuePointRemoved: 'Marcador eliminado',
+    noCuePoints: 'Sin marcadores',
+    shortcutToggleCuePoint: 'Marcador (en pausa)',
+    shortcutJumpToCuePoint: 'Ir al marcador ant./sig.',
+
+    importScript: 'Importar',
+    exportScript: 'Exportar',
   },
 
   de: {
@@ -602,6 +686,22 @@ Drücken Sie die Wiedergabe-Taste, um das Scrollen zu starten.`,
     chars: 'Zeichen',
     words: 'Wörter',
     lines: 'Zeilen',
+
+    estimatedDuration: 'Gesch. Dauer',
+    minutes: 'Min',
+    seconds: 'Sek',
+
+    readingGuide: 'Lesehilfe',
+    readingGuideDescription: 'Dunkelt Text außerhalb des Fokusbereichs ab',
+
+    cuePointAdded: 'Markierung hinzugefügt',
+    cuePointRemoved: 'Markierung entfernt',
+    noCuePoints: 'Keine Markierungen',
+    shortcutToggleCuePoint: 'Markierung (bei Pause)',
+    shortcutJumpToCuePoint: 'Zur vor./nächsten Markierung',
+
+    importScript: 'Importieren',
+    exportScript: 'Exportieren',
   },
 };
 

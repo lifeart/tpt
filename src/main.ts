@@ -54,10 +54,91 @@ const fontFamilyMap: Record<string, string> = {
   Verdana: "Verdana, sans-serif",
   Roboto: "Roboto, sans-serif",
   "Open Sans": '"Open Sans", sans-serif',
+  Lexend: '"Lexend", sans-serif',
+  OpenDyslexic: '"OpenDyslexic", sans-serif',
 };
 
 function getFontFamily(displayName: string): string {
   return fontFamilyMap[displayName] || displayName;
+}
+
+// Calculate estimated duration based on text lines and scroll speed
+function calculateDuration(text: string, linesPerSecond: number, maxWordsPerLine: number): { minutes: number; seconds: number } {
+  // Process lines with maxWordsPerLine if enabled (same logic as TeleprompterDisplay)
+  const inputLines = text.split("\n");
+  let totalLines = 0;
+
+  inputLines.forEach(line => {
+    if (maxWordsPerLine > 0 && line.trim() !== "") {
+      const words = line.trim().split(/\s+/);
+      if (words.length > maxWordsPerLine) {
+        totalLines += Math.ceil(words.length / maxWordsPerLine);
+      } else {
+        totalLines += 1;
+      }
+    } else {
+      totalLines += 1;
+    }
+  });
+
+  const totalSeconds = totalLines / linesPerSecond;
+  return {
+    minutes: Math.floor(totalSeconds / 60),
+    seconds: Math.round(totalSeconds % 60)
+  };
+}
+
+function formatDuration(minutes: number, seconds: number): string {
+  if (minutes > 0) {
+    return `${minutes}${i18n.t('minutes')} ${seconds}${i18n.t('seconds')}`;
+  }
+  return `${seconds}${i18n.t('seconds')}`;
+}
+
+// Export script as TXT file
+function exportScript(text: string, filename: string = 'script.txt') {
+  const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+// Import script from TXT file
+function importScript(): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.txt,.text,text/plain';
+    input.onchange = (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = () => reject(reader.error);
+        reader.readAsText(file);
+      } else {
+        reject(new Error('No file selected'));
+      }
+    };
+    // Handle cancel - onchange won't fire if no file selected
+    // Use a focus listener to detect when dialog closes without selection
+    const handleFocus = () => {
+      window.removeEventListener('focus', handleFocus);
+      // Small delay to allow onchange to fire first if file was selected
+      setTimeout(() => {
+        if (!input.files?.length) {
+          reject(new Error('File selection cancelled'));
+        }
+      }, 300);
+    };
+    window.addEventListener('focus', handleFocus);
+    input.click();
+  });
 }
 
 // SVG Icons for Fullscreen Toggle
@@ -96,6 +177,8 @@ class TeleprompterState {
   scriptEnded: boolean;
   isFullscreen: boolean;
   maxWordsPerLine: number; // New property to control line word limit
+  readingGuideEnabled: boolean; // Reading guide/focus area
+  cuePoints: Set<number>; // Cue point line indices
 
   constructor() {
     // Try to load saved script from localStorage
@@ -117,6 +200,8 @@ class TeleprompterState {
     this.scriptEnded = false;
     this.isFullscreen = false;
     this.maxWordsPerLine = CONFIG.MAX_WORDS_PER_LINE.DEFAULT;
+    this.readingGuideEnabled = false;
+    this.cuePoints = new Set();
   }
 }
 
@@ -125,6 +210,7 @@ class TeleprompterDisplay {
   private element: HTMLDivElement;
   private telepromptText: HTMLDivElement;
   private telepromptTextInner: HTMLDivElement;
+  private readingGuide: HTMLDivElement;
   private state: TeleprompterState;
   private animationFrameId: number | null = null;
   private lastTimestamp: number = 0;
@@ -173,6 +259,14 @@ class TeleprompterDisplay {
     this.updateStyles();
 
     this.element.appendChild(this.telepromptText);
+
+    // Create reading guide overlay
+    this.readingGuide = document.createElement("div");
+    this.readingGuide.className = "reading-guide";
+    if (this.state.readingGuideEnabled) {
+      this.readingGuide.classList.add("enabled");
+    }
+    this.element.appendChild(this.readingGuide);
 
     // Create countdown overlay (styles in CSS)
     this.countdownOverlay = document.createElement("div");
@@ -234,6 +328,34 @@ class TeleprompterDisplay {
           this.updateStyles();
           // Notify UI components to update their displays
           document.dispatchEvent(new CustomEvent("settings-changed"));
+        } else if (e.shiftKey && !this.state.isScrolling) {
+          // Shift + Up/Down: Jump to prev/next cue point
+          const cuePointsArray = Array.from(this.state.cuePoints).sort((a, b) => a - b);
+          if (cuePointsArray.length > 0) {
+            let targetIndex = -1;
+            if (e.key === "ArrowUp") {
+              // Find previous cue point
+              for (let i = cuePointsArray.length - 1; i >= 0; i--) {
+                if (cuePointsArray[i] < this.state.activeLineIndex) {
+                  targetIndex = cuePointsArray[i];
+                  break;
+                }
+              }
+            } else {
+              // Find next cue point
+              for (let i = 0; i < cuePointsArray.length; i++) {
+                if (cuePointsArray[i] > this.state.activeLineIndex) {
+                  targetIndex = cuePointsArray[i];
+                  break;
+                }
+              }
+            }
+            if (targetIndex >= 0) {
+              this.state.activeLineIndex = targetIndex;
+              this.jumpToLine(targetIndex);
+            }
+          }
+          e.preventDefault();
         } else if (!this.state.isScrolling) {
           // Up/Down: Move active line only if not playing
           if (e.key === "ArrowUp") {
@@ -260,6 +382,16 @@ class TeleprompterDisplay {
         e.preventDefault();
         return;
       }
+      // M key: Toggle cue point on current line (when paused)
+      // Don't trigger if typing in an input field
+      if ((e.key === "m" || e.key === "M") && !this.state.isScrolling) {
+        if (e.target instanceof HTMLTextAreaElement || e.target instanceof HTMLInputElement) {
+          return;
+        }
+        this.toggleCuePoint(this.state.activeLineIndex);
+        e.preventDefault();
+        return;
+      }
       if (e.key === " ") {
         // Space bar toggles play/pause
         this.toggleScrolling();
@@ -267,6 +399,25 @@ class TeleprompterDisplay {
       }
     };
     document.addEventListener("keydown", this.keydownHandler);
+  }
+
+  private toggleCuePoint(lineIndex: number) {
+    if (this.state.cuePoints.has(lineIndex)) {
+      this.state.cuePoints.delete(lineIndex);
+    } else {
+      this.state.cuePoints.add(lineIndex);
+    }
+    this.updateTelepromptText();
+  }
+
+  private jumpToLine(lineIndex: number) {
+    const targetLine = this.element.querySelector(
+      `.line[data-index="${lineIndex}"]`
+    ) as HTMLElement;
+    if (targetLine) {
+      targetLine.scrollIntoView({ behavior: "smooth", block: "center" });
+      this.updateTelepromptText();
+    }
   }
 
   updateTelepromptText() {
@@ -317,6 +468,11 @@ class TeleprompterDisplay {
 
       if (index === this.state.activeLineIndex) {
         lineElement.classList.add("active-line");
+      }
+
+      // Add cue-point class if this line is marked
+      if (this.state.cuePoints.has(index)) {
+        lineElement.classList.add("cue-point");
       }
 
       if (line.trim() === "") {
@@ -625,6 +781,13 @@ class TeleprompterDisplay {
       this.element.style.backgroundColor = this.state.backgroundColor;
       this.element.classList.toggle("flipped", this.state.isFlipped);
     }
+    // Update reading guide state and size
+    if (this.readingGuide) {
+      this.readingGuide.classList.toggle("enabled", this.state.readingGuideEnabled);
+      // Set reading guide height based on current font size and line spacing
+      const guideHeight = this.state.fontSize * this.state.lineSpacing * 1.5; // ~1.5 lines
+      this.readingGuide.style.height = `${guideHeight}px`;
+    }
     // Apply transform correctly without accumulation
     this.applyTransform();
     // Invalidate cached line height when styles change
@@ -729,6 +892,7 @@ class FloatingToolbar {
   private speedMinusBtn: HTMLButtonElement;
   private speedPlusBtn: HTMLButtonElement;
   private speedValue: HTMLSpanElement;
+  private durationDisplay: HTMLSpanElement;
   private fullscreenBtn: HTMLButtonElement;
   private settingsBtn: HTMLButtonElement;
   private helpBtn: HTMLButtonElement;
@@ -795,6 +959,11 @@ class FloatingToolbar {
     speedControl.appendChild(this.speedValue);
     speedControl.appendChild(this.speedPlusBtn);
 
+    // Duration display
+    this.durationDisplay = document.createElement("span");
+    this.durationDisplay.className = "toolbar-duration";
+    this.updateDurationDisplay();
+
     this.fullscreenBtn = this.createButton("toolbar-btn toolbar-btn-fullscreen toolbar-btn-icon", fullscreenEnterIcon, i18n.t('toggleFullscreen'));
     this.settingsBtn = this.createButton("toolbar-btn toolbar-btn-settings toolbar-btn-icon", settingsIcon, i18n.t('settings'));
     this.helpBtn = this.createButton("toolbar-btn toolbar-btn-help toolbar-btn-icon", helpIcon, i18n.t('helpKeyboardShortcuts'));
@@ -803,6 +972,7 @@ class FloatingToolbar {
     this.element.appendChild(this.editBtn);
     this.element.appendChild(this.playPauseBtn);
     this.element.appendChild(speedControl);
+    this.element.appendChild(this.durationDisplay);
     this.element.appendChild(this.fullscreenBtn);
     this.element.appendChild(this.settingsBtn);
     this.element.appendChild(this.helpBtn);
@@ -925,11 +1095,23 @@ class FloatingToolbar {
 
   private updateSpeedDisplay() {
     this.speedValue.textContent = `${this.state.scrollSpeed}x`;
+    this.updateDurationDisplay();
+  }
+
+  private updateDurationDisplay() {
+    const duration = calculateDuration(this.state.text, this.state.scrollSpeed, this.state.maxWordsPerLine);
+    const durationStr = formatDuration(duration.minutes, duration.seconds);
+    this.durationDisplay.textContent = durationStr;
+    this.durationDisplay.setAttribute("title", i18n.t('estimatedDuration'));
   }
 
   updateSpeed(speed: number) {
     this.state.scrollSpeed = speed;
     this.updateSpeedDisplay();
+  }
+
+  updateDuration() {
+    this.updateDurationDisplay();
   }
 
   private startAutoHide() {
@@ -1295,6 +1477,53 @@ class SettingsDrawer {
     flipVerticalRow.appendChild(flipVerticalToggle);
     flipGroup.appendChild(flipVerticalRow);
 
+    // Reading guide row
+    const readingGuideRow = document.createElement("div");
+    readingGuideRow.className = "flip-control-row";
+
+    const readingGuideLabelContainer = document.createElement("div");
+    readingGuideLabelContainer.className = "flip-control-label";
+
+    const readingGuideTitleId = "reading-guide-title";
+    const readingGuideDescId = "reading-guide-desc";
+
+    const readingGuideTitle = document.createElement("span");
+    readingGuideTitle.className = "flip-control-title";
+    readingGuideTitle.id = readingGuideTitleId;
+    readingGuideTitle.textContent = i18n.t('readingGuide');
+
+    const readingGuideSubtitle = document.createElement("span");
+    readingGuideSubtitle.className = "flip-control-subtitle";
+    readingGuideSubtitle.id = readingGuideDescId;
+    readingGuideSubtitle.textContent = i18n.t('readingGuideDescription');
+
+    readingGuideLabelContainer.appendChild(readingGuideTitle);
+    readingGuideLabelContainer.appendChild(readingGuideSubtitle);
+
+    const readingGuideToggle = document.createElement("label");
+    readingGuideToggle.className = "toggle-switch";
+    const readingGuideInput = document.createElement("input");
+    readingGuideInput.type = "checkbox";
+    readingGuideInput.checked = this.state.readingGuideEnabled;
+    readingGuideInput.setAttribute("role", "switch");
+    readingGuideInput.setAttribute("aria-checked", String(this.state.readingGuideEnabled));
+    readingGuideInput.setAttribute("aria-labelledby", readingGuideTitleId);
+    readingGuideInput.setAttribute("aria-describedby", readingGuideDescId);
+    readingGuideInput.addEventListener("change", () => {
+      this.state.readingGuideEnabled = readingGuideInput.checked;
+      readingGuideInput.setAttribute("aria-checked", String(readingGuideInput.checked));
+      this.onStateChange();
+    });
+    const readingGuideSlider = document.createElement("span");
+    readingGuideSlider.className = "toggle-slider";
+    readingGuideSlider.setAttribute("aria-hidden", "true");
+    readingGuideToggle.appendChild(readingGuideInput);
+    readingGuideToggle.appendChild(readingGuideSlider);
+
+    readingGuideRow.appendChild(readingGuideLabelContainer);
+    readingGuideRow.appendChild(readingGuideToggle);
+    flipGroup.appendChild(readingGuideRow);
+
     panel.appendChild(flipGroup);
   }
 
@@ -1317,6 +1546,8 @@ class SettingsDrawer {
       "Verdana",
       "Roboto",
       "Open Sans",
+      "Lexend",
+      "OpenDyslexic",
     ];
 
     fontOptions.forEach((font) => {
@@ -1653,6 +1884,8 @@ class ScriptEditor {
   private closeBtn: HTMLButtonElement;
   private titleSpan: HTMLHeadingElement;
   private saveBtn: HTMLButtonElement;
+  private importBtn: HTMLButtonElement;
+  private exportBtn: HTMLButtonElement;
 
   constructor(
     container: HTMLElement,
@@ -1703,6 +1936,26 @@ class ScriptEditor {
     const textareaContainer = document.createElement("div");
     textareaContainer.className = "editor-textarea-container";
 
+    // Import/Export toolbar
+    const editorToolbar = document.createElement("div");
+    editorToolbar.className = "editor-toolbar";
+
+    this.importBtn = document.createElement("button");
+    this.importBtn.className = "editor-toolbar-btn";
+    this.importBtn.type = "button";
+    this.importBtn.textContent = i18n.t('importScript');
+    this.importBtn.addEventListener("click", () => this.handleImport());
+
+    this.exportBtn = document.createElement("button");
+    this.exportBtn.className = "editor-toolbar-btn";
+    this.exportBtn.type = "button";
+    this.exportBtn.textContent = i18n.t('exportScript');
+    this.exportBtn.addEventListener("click", () => this.handleExport());
+
+    editorToolbar.appendChild(this.importBtn);
+    editorToolbar.appendChild(this.exportBtn);
+    textareaContainer.appendChild(editorToolbar);
+
     this.textarea = document.createElement("textarea");
     this.textarea.className = "editor-textarea";
     this.textarea.value = this.state.text;
@@ -1735,6 +1988,8 @@ class ScriptEditor {
     if (closeText) {
       closeText.textContent = i18n.t('close');
     }
+    this.importBtn.textContent = i18n.t('importScript');
+    this.exportBtn.textContent = i18n.t('exportScript');
     this.textarea.placeholder = i18n.t('script');
     this.updateCharCount();
   }
@@ -1744,7 +1999,9 @@ class ScriptEditor {
     const chars = text.length;
     const words = text.trim() ? text.trim().split(/\s+/).length : 0;
     const lines = text.split("\n").length;
-    this.charCount.textContent = `${chars} ${i18n.t('chars')} · ${words} ${i18n.t('words')} · ${lines} ${i18n.t('lines')}`;
+    const duration = calculateDuration(text, this.state.scrollSpeed, this.state.maxWordsPerLine);
+    const durationStr = formatDuration(duration.minutes, duration.seconds);
+    this.charCount.textContent = `${chars} ${i18n.t('chars')} · ${words} ${i18n.t('words')} · ${lines} ${i18n.t('lines')} · ${i18n.t('estimatedDuration')}: ${durationStr}`;
   }
 
   open() {
@@ -1785,6 +2042,11 @@ class ScriptEditor {
     this.state.text = this.textarea.value;
     this.state.scriptEnded = false;
 
+    // Clear cue points that are beyond the new line count
+    const lineCount = this.state.text.split("\n").length;
+    const invalidCuePoints = Array.from(this.state.cuePoints).filter(index => index >= lineCount);
+    invalidCuePoints.forEach(index => this.state.cuePoints.delete(index));
+
     // Save to localStorage
     try {
       localStorage.setItem(CONFIG.STORAGE_KEY, this.state.text);
@@ -1801,6 +2063,19 @@ class ScriptEditor {
     // since close() calls save() only when isOpen is true
     this.isOpen = false;
     this.close();
+  }
+
+  private handleImport() {
+    importScript().then((text) => {
+      this.textarea.value = text;
+      this.updateCharCount();
+    }).catch((error) => {
+      console.warn("Could not import script:", error);
+    });
+  }
+
+  private handleExport() {
+    exportScript(this.textarea.value, 'teleprompter-script.txt');
   }
 
   destroy() {
@@ -1903,6 +2178,8 @@ class HelpModal {
       { desc: i18n.t('shortcutNavigateLines'), keys: ['↑', '↓'] },
       { desc: i18n.t('shortcutFontSize'), keys: ['Ctrl', '←', '→'] },
       { desc: i18n.t('shortcutLineSpacing'), keys: ['Ctrl', '↑', '↓'] },
+      { desc: i18n.t('shortcutToggleCuePoint'), keys: ['M'] },
+      { desc: i18n.t('shortcutJumpToCuePoint'), keys: ['Shift', '↑', '↓'] },
       { desc: i18n.t('shortcutShowHelp'), keys: ['?'] },
       { desc: i18n.t('shortcutCloseDialog'), keys: ['Esc'] },
     ];
@@ -2115,6 +2392,10 @@ class TeleprompterApp {
       if (this.display) {
         this.display.updateStyles();
       }
+      // Update duration when settings change (e.g., maxWordsPerLine)
+      if (this.toolbar) {
+        this.toolbar.updateDuration();
+      }
     });
 
     // Initialize script editor
@@ -2122,6 +2403,10 @@ class TeleprompterApp {
       if (this.display) {
         this.display.updateTelepromptText();
         this.display.updateStyles();
+      }
+      // Update toolbar duration when text changes
+      if (this.toolbar) {
+        this.toolbar.updateDuration();
       }
       // Reset scroll position to top when text changes
       document.dispatchEvent(new CustomEvent("back-to-top"));
