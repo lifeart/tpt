@@ -3,7 +3,10 @@ import { fontFamilyMap } from "../fonts";
 import { i18n } from "../i18n";
 import type { Locale } from "../i18n";
 import type { TeleprompterState } from "../state";
-import { formatLabel } from "../utils";
+import type { ScrollMode, TextDirection } from "../types";
+import { formatLabel, getContrastRatio } from "../utils";
+import { THEME_PRESETS, getContrastLevel } from "../themes";
+import { createFocusTrap, type FocusTrap } from "../focus-trap";
 
 // Settings Drawer Component
 export class SettingsDrawer {
@@ -28,8 +31,15 @@ export class SettingsDrawer {
   private scrollSpeedLabel: HTMLLabelElement | null = null;
   private maxWordsPerLineInput: HTMLInputElement | null = null;
   private maxWordsPerLineLabel: HTMLLabelElement | null = null;
+  private horizontalMarginInput: HTMLInputElement | null = null;
+  private horizontalMarginLabel: HTMLLabelElement | null = null;
+  private overlayOpacityInput: HTMLInputElement | null = null;
+  private overlayOpacityLabel: HTMLLabelElement | null = null;
+  private contrastIndicator: HTMLSpanElement | null = null;
   private tabButtons: HTMLButtonElement[] = [];
   private closeBtn: HTMLButtonElement | null = null;
+  private resetBtn: HTMLButtonElement | null = null;
+  private focusTrap: FocusTrap | null = null;
 
   constructor(
     container: HTMLElement,
@@ -56,6 +66,9 @@ export class SettingsDrawer {
 
     container.appendChild(this.backdrop);
     container.appendChild(this.drawer);
+
+    // Create focus trap for drawer
+    this.focusTrap = createFocusTrap(this.drawer);
 
     // Subscribe to locale changes
     this.i18nUnsubscribe = i18n.onChange(() => {
@@ -125,17 +138,30 @@ export class SettingsDrawer {
 
     this.drawer.appendChild(content);
 
+    // Bottom buttons container
+    const bottomContainer = document.createElement("div");
+    bottomContainer.className = "drawer-bottom-buttons";
+    bottomContainer.style.padding = "12px 16px 16px";
+    bottomContainer.style.display = "flex";
+    bottomContainer.style.gap = "12px";
+
+    // Reset to defaults button
+    this.resetBtn = document.createElement("button");
+    this.resetBtn.className = "drawer-reset-btn";
+    this.resetBtn.type = "button";
+    this.resetBtn.textContent = i18n.t('resetToDefaults');
+    this.resetBtn.addEventListener("click", () => this.resetToDefaults());
+    bottomContainer.appendChild(this.resetBtn);
+
     // Close button
     this.closeBtn = document.createElement("button");
     this.closeBtn.className = "drawer-close-btn";
     this.closeBtn.type = "button";
     this.closeBtn.textContent = i18n.t('closeDrawer');
     this.closeBtn.addEventListener("click", () => this.close());
+    bottomContainer.appendChild(this.closeBtn);
 
-    const closeContainer = document.createElement("div");
-    closeContainer.style.padding = "12px 16px 16px";
-    closeContainer.appendChild(this.closeBtn);
-    this.drawer.appendChild(closeContainer);
+    this.drawer.appendChild(bottomContainer);
   }
 
   private createPanel(id: string): HTMLDivElement {
@@ -378,6 +404,121 @@ export class SettingsDrawer {
     flipGroup.appendChild(readingGuideRow);
 
     panel.appendChild(flipGroup);
+
+    // Theme presets
+    const themeGroup = this.createSettingsGroup();
+    const themeLabel = document.createElement("label");
+    themeLabel.className = "settings-label";
+    themeLabel.textContent = i18n.t('themePresets');
+
+    const themeSelect = document.createElement("select");
+    themeSelect.className = "settings-select";
+
+    // Add "Custom" option
+    const customOption = document.createElement("option");
+    customOption.value = "custom";
+    customOption.textContent = "Custom";
+    customOption.selected = true;
+    themeSelect.appendChild(customOption);
+
+    THEME_PRESETS.forEach((theme) => {
+      const option = document.createElement("option");
+      option.value = theme.id;
+      option.textContent = theme.name;
+      themeSelect.appendChild(option);
+    });
+
+    themeSelect.addEventListener("change", () => {
+      const selectedTheme = THEME_PRESETS.find(t => t.id === themeSelect.value);
+      if (selectedTheme) {
+        this.state.fontColor = selectedTheme.fg;
+        this.state.backgroundColor = selectedTheme.bg;
+        this.onStateChange();
+        this.updateContrastIndicator();
+      }
+    });
+
+    const themeRow = document.createElement("div");
+    themeRow.className = "settings-row";
+    themeRow.appendChild(themeSelect);
+
+    // Contrast indicator
+    this.contrastIndicator = document.createElement("span");
+    this.contrastIndicator.className = "contrast-indicator";
+    this.updateContrastIndicator();
+
+    themeGroup.appendChild(themeLabel);
+    themeGroup.appendChild(themeRow);
+    themeGroup.appendChild(this.contrastIndicator);
+    panel.appendChild(themeGroup);
+
+    // Overlay Opacity (for transparency mode)
+    const overlayGroup = this.createSettingsGroup();
+    this.overlayOpacityLabel = document.createElement("label");
+    this.overlayOpacityLabel.className = "settings-label";
+    this.overlayOpacityLabel.textContent = `${i18n.t('overlayOpacity')}: ${Math.round(this.state.overlayOpacity * 100)}%`;
+
+    this.overlayOpacityInput = document.createElement("input");
+    this.overlayOpacityInput.type = "range";
+    this.overlayOpacityInput.min = CONFIG.OVERLAY_OPACITY.MIN.toString();
+    this.overlayOpacityInput.max = CONFIG.OVERLAY_OPACITY.MAX.toString();
+    this.overlayOpacityInput.step = CONFIG.OVERLAY_OPACITY.STEP.toString();
+    this.overlayOpacityInput.value = this.state.overlayOpacity.toString();
+    this.overlayOpacityInput.addEventListener("input", () => {
+      this.state.overlayOpacity = parseFloat(this.overlayOpacityInput!.value);
+      this.overlayOpacityLabel!.textContent = `${i18n.t('overlayOpacity')}: ${Math.round(this.state.overlayOpacity * 100)}%`;
+      this.onStateChange();
+    });
+
+    const overlayRow = document.createElement("div");
+    overlayRow.className = "settings-row";
+    overlayRow.appendChild(this.overlayOpacityInput);
+
+    const overlayHint = document.createElement("span");
+    overlayHint.className = "flip-control-subtitle";
+    overlayHint.style.padding = "0 16px 12px";
+    overlayHint.textContent = i18n.t('overlayModeDescription');
+
+    overlayGroup.appendChild(this.overlayOpacityLabel);
+    overlayGroup.appendChild(overlayRow);
+    overlayGroup.appendChild(overlayHint);
+    panel.appendChild(overlayGroup);
+
+    // Horizontal Margin
+    const marginGroup = this.createSettingsGroup();
+    this.horizontalMarginLabel = document.createElement("label");
+    this.horizontalMarginLabel.className = "settings-label";
+    this.horizontalMarginLabel.textContent = `${i18n.t('horizontalMargin')}: ${this.state.horizontalMargin}%`;
+
+    this.horizontalMarginInput = document.createElement("input");
+    this.horizontalMarginInput.type = "range";
+    this.horizontalMarginInput.min = CONFIG.HORIZONTAL_MARGIN.MIN.toString();
+    this.horizontalMarginInput.max = CONFIG.HORIZONTAL_MARGIN.MAX.toString();
+    this.horizontalMarginInput.value = this.state.horizontalMargin.toString();
+    this.horizontalMarginInput.addEventListener("input", () => {
+      this.state.horizontalMargin = this.horizontalMarginInput!.valueAsNumber;
+      this.horizontalMarginLabel!.textContent = `${i18n.t('horizontalMargin')}: ${this.state.horizontalMargin}%`;
+      this.onStateChange();
+    });
+
+    const marginRow = document.createElement("div");
+    marginRow.className = "settings-row";
+    marginRow.appendChild(this.horizontalMarginInput);
+
+    marginGroup.appendChild(this.horizontalMarginLabel);
+    marginGroup.appendChild(marginRow);
+    panel.appendChild(marginGroup);
+  }
+
+  private updateContrastIndicator() {
+    if (!this.contrastIndicator) return;
+    const ratio = getContrastRatio(this.state.fontColor, this.state.backgroundColor);
+    const level = getContrastLevel(ratio);
+    this.contrastIndicator.textContent = `${i18n.t('contrastRatio')}: ${ratio.toFixed(1)}:1 (${level.level})`;
+    this.contrastIndicator.style.color = level.passes ? 'var(--apple-toggle-on)' : 'var(--apple-system-orange)';
+    this.contrastIndicator.style.padding = '8px 16px';
+    this.contrastIndicator.style.display = 'block';
+    this.contrastIndicator.style.fontSize = 'var(--font-xs)';
   }
 
   private renderTypographyTab(panel: HTMLDivElement) {
@@ -523,6 +664,83 @@ export class SettingsDrawer {
   }
 
   private renderGeneralTab(panel: HTMLDivElement) {
+    // Scroll Mode
+    const scrollModeGroup = this.createSettingsGroup();
+    const scrollModeLabel = document.createElement("label");
+    scrollModeLabel.className = "settings-label";
+    scrollModeLabel.textContent = i18n.t('scrollMode');
+
+    const scrollModeSelect = document.createElement("select");
+    scrollModeSelect.className = "settings-select";
+
+    const scrollModes: { value: ScrollMode; label: string }[] = [
+      { value: 'continuous', label: i18n.t('continuous') },
+      { value: 'paging', label: i18n.t('paging') },
+      { value: 'voice', label: i18n.t('voice') },
+    ];
+
+    scrollModes.forEach(({ value, label }) => {
+      const option = document.createElement("option");
+      option.value = value;
+      option.textContent = label;
+      if (this.state.scrollMode === value) {
+        option.selected = true;
+      }
+      scrollModeSelect.appendChild(option);
+    });
+
+    scrollModeSelect.addEventListener("change", () => {
+      this.state.scrollMode = scrollModeSelect.value as ScrollMode;
+      this.onStateChange();
+      document.dispatchEvent(new CustomEvent("scroll-mode-changed"));
+    });
+
+    const scrollModeRow = document.createElement("div");
+    scrollModeRow.className = "settings-row";
+    scrollModeRow.appendChild(scrollModeSelect);
+
+    scrollModeGroup.appendChild(scrollModeLabel);
+    scrollModeGroup.appendChild(scrollModeRow);
+    panel.appendChild(scrollModeGroup);
+
+    // Text Direction
+    const textDirGroup = this.createSettingsGroup();
+    const textDirLabel = document.createElement("label");
+    textDirLabel.className = "settings-label";
+    textDirLabel.textContent = i18n.t('textDirection');
+
+    const textDirSelect = document.createElement("select");
+    textDirSelect.className = "settings-select";
+
+    const textDirections: { value: TextDirection; label: string }[] = [
+      { value: 'auto', label: i18n.t('autoDetect') },
+      { value: 'ltr', label: i18n.t('leftToRight') },
+      { value: 'rtl', label: i18n.t('rightToLeft') },
+    ];
+
+    textDirections.forEach(({ value, label }) => {
+      const option = document.createElement("option");
+      option.value = value;
+      option.textContent = label;
+      if (this.state.textDirection === value) {
+        option.selected = true;
+      }
+      textDirSelect.appendChild(option);
+    });
+
+    textDirSelect.addEventListener("change", () => {
+      this.state.textDirection = textDirSelect.value as TextDirection;
+      this.onStateChange();
+    });
+
+    const textDirRow = document.createElement("div");
+    textDirRow.className = "settings-row";
+    textDirRow.appendChild(textDirSelect);
+
+    textDirGroup.appendChild(textDirLabel);
+    textDirGroup.appendChild(textDirRow);
+    panel.appendChild(textDirGroup);
+
     // Language
     const languageGroup = this.createSettingsGroup();
     const languageLabel = document.createElement("label");
@@ -603,6 +821,11 @@ export class SettingsDrawer {
       this.closeBtn.textContent = i18n.t('closeDrawer');
     }
 
+    // Update reset button
+    if (this.resetBtn) {
+      this.resetBtn.textContent = i18n.t('resetToDefaults');
+    }
+
     // Update other labels
     if (this.fontSizeLabel) {
       this.fontSizeLabel.textContent = formatLabel('fontSize', this.state.fontSize, 'px');
@@ -621,7 +844,7 @@ export class SettingsDrawer {
     }
   }
 
-  // Sync input values from state (called when settings change via keyboard shortcuts)
+  // Sync input values from state (called when settings change via keyboard shortcuts or reset)
   private syncInputsFromState() {
     if (this.fontSizeInput) {
       this.fontSizeInput.value = this.state.fontSize.toString();
@@ -641,12 +864,41 @@ export class SettingsDrawer {
     if (this.letterSpacingLabel) {
       this.letterSpacingLabel.textContent = formatLabel('letterSpacing', this.state.letterSpacing, 'px');
     }
+    if (this.scrollSpeedInput) {
+      this.scrollSpeedInput.value = this.state.scrollSpeed.toString();
+    }
+    if (this.scrollSpeedLabel) {
+      this.scrollSpeedLabel.textContent = formatLabel('scrollSpeed', `${this.state.scrollSpeed} `, 'linesPerSec');
+    }
+    if (this.maxWordsPerLineInput) {
+      this.maxWordsPerLineInput.value = this.state.maxWordsPerLine.toString();
+    }
+    if (this.maxWordsPerLineLabel) {
+      this.maxWordsPerLineLabel.textContent = formatLabel('maxWordsPerLine', this.state.maxWordsPerLine);
+    }
+    if (this.horizontalMarginInput) {
+      this.horizontalMarginInput.value = this.state.horizontalMargin.toString();
+    }
+    if (this.horizontalMarginLabel) {
+      this.horizontalMarginLabel.textContent = `${i18n.t('horizontalMargin')}: ${this.state.horizontalMargin}%`;
+    }
+    if (this.overlayOpacityInput) {
+      this.overlayOpacityInput.value = this.state.overlayOpacity.toString();
+    }
+    if (this.overlayOpacityLabel) {
+      this.overlayOpacityLabel.textContent = `${i18n.t('overlayOpacity')}: ${Math.round(this.state.overlayOpacity * 100)}%`;
+    }
   }
 
   open() {
     this.isOpen = true;
     this.backdrop.classList.add("open");
     this.drawer.classList.add("open");
+
+    // Activate focus trap
+    if (this.focusTrap) {
+      this.focusTrap.activate();
+    }
 
     // Setup ESC key handler
     this.escKeyHandler = (e: KeyboardEvent) => {
@@ -664,6 +916,11 @@ export class SettingsDrawer {
     this.isOpen = false;
     this.backdrop.classList.remove("open");
     this.drawer.classList.remove("open");
+
+    // Deactivate focus trap (restores focus to previous element)
+    if (this.focusTrap) {
+      this.focusTrap.deactivate();
+    }
 
     // Remove ESC key handler
     if (this.escKeyHandler) {
@@ -689,6 +946,35 @@ export class SettingsDrawer {
     if (this.scrollSpeedLabel) {
       this.scrollSpeedLabel.textContent = formatLabel('scrollSpeed', `${speed} `, 'linesPerSec');
     }
+  }
+
+  private resetToDefaults() {
+    // Reset all settings to CONFIG defaults
+    this.state.fontSize = CONFIG.FONT_SIZE.DEFAULT;
+    this.state.fontFamily = 'System';
+    this.state.fontColor = '#FFFFFF';
+    this.state.backgroundColor = '#000000';
+    this.state.lineSpacing = CONFIG.LINE_SPACING.DEFAULT;
+    this.state.letterSpacing = CONFIG.LETTER_SPACING.DEFAULT;
+    this.state.scrollSpeed = CONFIG.SCROLL_SPEED.DEFAULT;
+    this.state.maxWordsPerLine = CONFIG.MAX_WORDS_PER_LINE.DEFAULT;
+    this.state.isFlipped = false;
+    this.state.isFlippedVertical = false;
+    this.state.readingGuideEnabled = false;
+    this.state.overlayOpacity = CONFIG.OVERLAY_OPACITY.DEFAULT;
+    this.state.horizontalMargin = CONFIG.HORIZONTAL_MARGIN.DEFAULT;
+    this.state.textDirection = 'auto';
+    this.state.scrollMode = 'continuous';
+
+    // Sync UI inputs to new values
+    this.syncInputsFromState();
+    this.updateContrastIndicator();
+
+    // Notify changes and save
+    this.onStateChange();
+    this.state.saveSettings();
+    document.dispatchEvent(new CustomEvent("settings-changed"));
+    document.dispatchEvent(new CustomEvent("scroll-mode-changed"));
   }
 
   destroy() {

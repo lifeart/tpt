@@ -6,11 +6,15 @@ import {
   fullscreenExitIcon,
   settingsIcon,
   helpIcon,
+  remoteIcon,
+  scrollIcon,
+  pagesIcon,
+  micIcon,
 } from "../icons";
 import { i18n } from "../i18n";
 import type { TeleprompterState } from "../state";
-import type { ScrollingToggledDetail } from "../types";
-import { calculateDuration, formatDuration } from "../utils";
+import type { ScrollingToggledDetail, ScrollMode } from "../types";
+import { calculateDuration, formatDuration, calculateWPM } from "../utils";
 
 // Floating Toolbar Component
 export class FloatingToolbar {
@@ -26,6 +30,10 @@ export class FloatingToolbar {
   private fullscreenBtn: HTMLButtonElement;
   private settingsBtn: HTMLButtonElement;
   private helpBtn: HTMLButtonElement;
+  private remoteBtn: HTMLButtonElement;
+  private scrollModeBtn: HTMLButtonElement;
+  private pageIndicator: HTMLSpanElement | null = null;
+  private speedControl: HTMLDivElement | null = null;
   private scrollingToggledHandler: ((e: CustomEvent<ScrollingToggledDetail>) => void) | null = null;
   private fullscreenChangeHandler: (() => void) | null = null;
   private autoHideTimeout: number | null = null;
@@ -35,6 +43,7 @@ export class FloatingToolbar {
   private onEditClick: () => void;
   private onSettingsClick: () => void;
   private onHelpClick: () => void;
+  private onRemoteClick: () => void;
 
   constructor(
     container: HTMLElement,
@@ -43,12 +52,14 @@ export class FloatingToolbar {
       onEditClick: () => void;
       onSettingsClick: () => void;
       onHelpClick: () => void;
+      onRemoteClick?: () => void;
     }
   ) {
     this.state = state;
     this.onEditClick = callbacks.onEditClick;
     this.onSettingsClick = callbacks.onSettingsClick;
     this.onHelpClick = callbacks.onHelpClick;
+    this.onRemoteClick = callbacks.onRemoteClick || (() => {});
 
     // Create toolbar element
     this.element = document.createElement("nav");
@@ -62,11 +73,15 @@ export class FloatingToolbar {
     this.playPauseBtn = this.createButton("toolbar-btn toolbar-btn-play", "", i18n.t('play'));
     this.playPauseBtn.textContent = i18n.t('play');
 
-    // Speed control
-    const speedControl = document.createElement("div");
-    speedControl.className = "speed-control";
-    speedControl.setAttribute("role", "group");
-    speedControl.setAttribute("aria-label", "Speed control");
+    // Duration display (created early since updateSpeedDisplay references it)
+    this.durationDisplay = document.createElement("span");
+    this.durationDisplay.className = "toolbar-duration";
+
+    // Speed control (shown for continuous mode)
+    this.speedControl = document.createElement("div");
+    this.speedControl.className = "speed-control";
+    this.speedControl.setAttribute("role", "group");
+    this.speedControl.setAttribute("aria-label", "Speed control");
 
     this.speedMinusBtn = document.createElement("button");
     this.speedMinusBtn.className = "speed-btn";
@@ -76,9 +91,14 @@ export class FloatingToolbar {
 
     this.speedValue = document.createElement("span");
     this.speedValue.className = "speed-value";
-    this.speedValue.textContent = `${this.state.scrollSpeed}x`;
+    this.speedValue.setAttribute("role", "status");
     this.speedValue.setAttribute("aria-live", "polite");
     this.speedValue.setAttribute("aria-atomic", "true");
+    // ARIA value attributes for accessibility
+    this.speedValue.setAttribute("aria-valuemin", CONFIG.SCROLL_SPEED.MIN.toString());
+    this.speedValue.setAttribute("aria-valuemax", CONFIG.SCROLL_SPEED.MAX.toString());
+    this.speedValue.setAttribute("aria-valuenow", this.state.scrollSpeed.toString());
+    this.updateSpeedDisplay();
 
     this.speedPlusBtn = document.createElement("button");
     this.speedPlusBtn.className = "speed-btn";
@@ -86,14 +106,21 @@ export class FloatingToolbar {
     this.speedPlusBtn.setAttribute("aria-label", i18n.t('increaseSpeed'));
     this.speedPlusBtn.type = "button";
 
-    speedControl.appendChild(this.speedMinusBtn);
-    speedControl.appendChild(this.speedValue);
-    speedControl.appendChild(this.speedPlusBtn);
+    this.speedControl.appendChild(this.speedMinusBtn);
+    this.speedControl.appendChild(this.speedValue);
+    this.speedControl.appendChild(this.speedPlusBtn);
 
-    // Duration display
-    this.durationDisplay = document.createElement("span");
-    this.durationDisplay.className = "toolbar-duration";
-    this.updateDurationDisplay();
+    // Page indicator (shown for paging mode)
+    this.pageIndicator = document.createElement("span");
+    this.pageIndicator.className = "toolbar-page-indicator";
+    this.pageIndicator.style.display = "none";
+    this.updatePageIndicator();
+
+    // Scroll mode toggle button
+    this.scrollModeBtn = this.createButton("toolbar-btn toolbar-btn-mode toolbar-btn-icon", this.getScrollModeIcon(), this.getScrollModeLabel());
+
+    // Remote control button
+    this.remoteBtn = this.createButton("toolbar-btn toolbar-btn-remote toolbar-btn-icon", remoteIcon, i18n.t('openRemote'));
 
     this.fullscreenBtn = this.createButton("toolbar-btn toolbar-btn-fullscreen toolbar-btn-icon", fullscreenEnterIcon, i18n.t('toggleFullscreen'));
     this.settingsBtn = this.createButton("toolbar-btn toolbar-btn-settings toolbar-btn-icon", settingsIcon, i18n.t('settings'));
@@ -103,13 +130,19 @@ export class FloatingToolbar {
     this.element.appendChild(this.editBtn);
     this.element.appendChild(this.restartBtn);
     this.element.appendChild(this.playPauseBtn);
-    this.element.appendChild(speedControl);
+    this.element.appendChild(this.speedControl);
+    this.element.appendChild(this.pageIndicator);
+    this.element.appendChild(this.scrollModeBtn);
     this.element.appendChild(this.durationDisplay);
+    this.element.appendChild(this.remoteBtn);
     this.element.appendChild(this.fullscreenBtn);
     this.element.appendChild(this.settingsBtn);
     this.element.appendChild(this.helpBtn);
 
     container.appendChild(this.element);
+
+    // Update UI based on current scroll mode
+    this.updateScrollModeUI();
 
     this.setupEventListeners();
 
@@ -136,7 +169,76 @@ export class FloatingToolbar {
     this.fullscreenBtn.setAttribute("aria-label", i18n.t('toggleFullscreen'));
     this.settingsBtn.setAttribute("aria-label", i18n.t('settings'));
     this.helpBtn.setAttribute("aria-label", i18n.t('helpKeyboardShortcuts'));
+    this.remoteBtn.setAttribute("aria-label", i18n.t('openRemote'));
+    this.scrollModeBtn.setAttribute("aria-label", this.getScrollModeLabel());
     // Play/pause button text is managed by scrolling-toggled event
+  }
+
+  private getScrollModeIcon(): string {
+    switch (this.state.scrollMode) {
+      case 'paging': return pagesIcon;
+      case 'voice': return micIcon;
+      default: return scrollIcon;
+    }
+  }
+
+  private getScrollModeLabel(): string {
+    switch (this.state.scrollMode) {
+      case 'paging': return i18n.t('paging');
+      case 'voice': return i18n.t('voice');
+      default: return i18n.t('continuous');
+    }
+  }
+
+  private cycleScrollMode() {
+    const modes: ScrollMode[] = ['continuous', 'paging', 'voice'];
+    const currentIndex = modes.indexOf(this.state.scrollMode);
+    const nextIndex = (currentIndex + 1) % modes.length;
+    this.state.scrollMode = modes[nextIndex];
+    this.state.saveSettings();
+    this.updateScrollModeUI();
+    document.dispatchEvent(new CustomEvent("scroll-mode-changed"));
+  }
+
+  private updateScrollModeUI() {
+    // Update button icon
+    this.scrollModeBtn.innerHTML = this.getScrollModeIcon();
+    this.scrollModeBtn.setAttribute("aria-label", this.getScrollModeLabel());
+
+    // Show/hide speed control vs page indicator based on mode
+    if (this.speedControl && this.pageIndicator) {
+      if (this.state.scrollMode === 'paging') {
+        this.speedControl.style.display = 'none';
+        this.pageIndicator.style.display = 'flex';
+        this.updatePageIndicator();
+      } else {
+        this.speedControl.style.display = 'flex';
+        this.pageIndicator.style.display = 'none';
+      }
+    }
+  }
+
+  private updatePageIndicator() {
+    if (this.pageIndicator) {
+      const totalPages = this.getTotalPages();
+      const currentPage = this.state.currentPage + 1;
+      this.pageIndicator.textContent = `${i18n.t('pageIndicator')} ${currentPage} / ${totalPages}`;
+    }
+  }
+
+  private getTotalPages(): number {
+    // Estimate total pages based on line count and viewport
+    // This will be refined by TeleprompterDisplay which has access to actual measurements
+    const lines = this.state.text.split('\n').length;
+    const estimatedLinesPerPage = 10; // Rough estimate
+    return Math.max(1, Math.ceil(lines / estimatedLinesPerPage));
+  }
+
+  updatePageInfo(currentPage: number, totalPages: number) {
+    this.state.currentPage = currentPage;
+    if (this.pageIndicator) {
+      this.pageIndicator.textContent = `${i18n.t('pageIndicator')} ${currentPage + 1} / ${totalPages}`;
+    }
   }
 
   private setupEventListeners() {
@@ -185,6 +287,16 @@ export class FloatingToolbar {
     // Help button
     this.helpBtn.addEventListener("click", () => {
       this.onHelpClick();
+    });
+
+    // Remote button
+    this.remoteBtn.addEventListener("click", () => {
+      this.onRemoteClick();
+    });
+
+    // Scroll mode toggle button
+    this.scrollModeBtn.addEventListener("click", () => {
+      this.cycleScrollMode();
     });
 
     // Listen for scrolling state changes
@@ -249,7 +361,13 @@ export class FloatingToolbar {
   }
 
   private updateSpeedDisplay() {
+    // Show speed with WPM
+    const wpm = calculateWPM(this.state.text, this.state.scrollSpeed, this.state.maxWordsPerLine);
     this.speedValue.textContent = `${this.state.scrollSpeed}x`;
+    this.speedValue.setAttribute("title", `~${wpm} ${i18n.t('wpm')}`);
+    // Update ARIA value for accessibility
+    this.speedValue.setAttribute("aria-valuenow", this.state.scrollSpeed.toString());
+    this.speedValue.setAttribute("aria-valuetext", `${this.state.scrollSpeed} ${i18n.t('linesPerSec')}, approximately ${wpm} ${i18n.t('wpm')}`);
     this.updateDurationDisplay();
   }
 

@@ -1,6 +1,7 @@
 import { CONFIG } from "./config";
 import { i18n } from "./i18n";
 import { loadSettings, saveSettings } from "./storage";
+import type { ScrollMode, TextDirection } from "./types";
 
 // Teleprompter state class
 export class TeleprompterState {
@@ -20,6 +21,12 @@ export class TeleprompterState {
   maxWordsPerLine: number; // New property to control line word limit
   readingGuideEnabled: boolean; // Reading guide/focus area
   cuePoints: Set<number>; // Cue point line indices
+  // New properties for Phase 1 features
+  scrollMode: ScrollMode; // continuous, paging, or voice
+  overlayOpacity: number; // 0.3-1.0 for transparency mode
+  horizontalMargin: number; // 0-40% for side margins
+  textDirection: TextDirection; // auto, ltr, rtl
+  currentPage: number; // For paging mode
 
   constructor() {
     // Try to load saved script from localStorage
@@ -43,6 +50,12 @@ export class TeleprompterState {
     this.maxWordsPerLine = CONFIG.MAX_WORDS_PER_LINE.DEFAULT;
     this.readingGuideEnabled = false;
     this.cuePoints = new Set();
+    // New defaults
+    this.scrollMode = 'continuous';
+    this.overlayOpacity = CONFIG.OVERLAY_OPACITY.DEFAULT;
+    this.horizontalMargin = CONFIG.HORIZONTAL_MARGIN.DEFAULT;
+    this.textDirection = 'auto';
+    this.currentPage = 0;
 
     // Restore saved settings with range validation
     const saved = loadSettings();
@@ -69,6 +82,19 @@ export class TeleprompterState {
       }
       if (typeof saved.readingGuideEnabled === 'boolean') this.readingGuideEnabled = saved.readingGuideEnabled;
       if (Array.isArray(saved.cuePoints)) this.cuePoints = new Set(saved.cuePoints);
+      // Restore new settings
+      if (saved.scrollMode === 'continuous' || saved.scrollMode === 'paging' || saved.scrollMode === 'voice') {
+        this.scrollMode = saved.scrollMode;
+      }
+      if (typeof saved.overlayOpacity === 'number') {
+        this.overlayOpacity = Math.max(CONFIG.OVERLAY_OPACITY.MIN, Math.min(CONFIG.OVERLAY_OPACITY.MAX, saved.overlayOpacity));
+      }
+      if (typeof saved.horizontalMargin === 'number') {
+        this.horizontalMargin = Math.max(CONFIG.HORIZONTAL_MARGIN.MIN, Math.min(CONFIG.HORIZONTAL_MARGIN.MAX, saved.horizontalMargin));
+      }
+      if (saved.textDirection === 'auto' || saved.textDirection === 'ltr' || saved.textDirection === 'rtl') {
+        this.textDirection = saved.textDirection;
+      }
     }
   }
 
@@ -86,6 +112,10 @@ export class TeleprompterState {
       maxWordsPerLine: this.maxWordsPerLine,
       readingGuideEnabled: this.readingGuideEnabled,
       cuePoints: Array.from(this.cuePoints),
+      scrollMode: this.scrollMode,
+      overlayOpacity: this.overlayOpacity,
+      horizontalMargin: this.horizontalMargin,
+      textDirection: this.textDirection,
     });
   }
 }

@@ -2,7 +2,8 @@ import { CONFIG } from "../config";
 import { closeIcon } from "../icons";
 import { i18n } from "../i18n";
 import type { TeleprompterState } from "../state";
-import { calculateDuration, formatDuration, exportScript, importScript } from "../utils";
+import { calculateDuration, formatDuration, exportScript, importScript, exportSRT, splitTextIntoLines } from "../utils";
+import { createFocusTrap, type FocusTrap } from "../focus-trap";
 
 // Script Editor Component (Full-screen overlay)
 export class ScriptEditor {
@@ -19,6 +20,8 @@ export class ScriptEditor {
   private saveBtn: HTMLButtonElement;
   private importBtn: HTMLButtonElement;
   private exportBtn: HTMLButtonElement;
+  private exportSRTBtn: HTMLButtonElement;
+  private focusTrap: FocusTrap | null = null;
 
   constructor(
     container: HTMLElement,
@@ -85,8 +88,15 @@ export class ScriptEditor {
     this.exportBtn.textContent = i18n.t('exportScript');
     this.exportBtn.addEventListener("click", () => this.handleExport());
 
+    this.exportSRTBtn = document.createElement("button");
+    this.exportSRTBtn.className = "editor-toolbar-btn";
+    this.exportSRTBtn.type = "button";
+    this.exportSRTBtn.textContent = i18n.t('exportSRT');
+    this.exportSRTBtn.addEventListener("click", () => this.handleExportSRT());
+
     editorToolbar.appendChild(this.importBtn);
     editorToolbar.appendChild(this.exportBtn);
+    editorToolbar.appendChild(this.exportSRTBtn);
     textareaContainer.appendChild(editorToolbar);
 
     this.textarea = document.createElement("textarea");
@@ -107,6 +117,9 @@ export class ScriptEditor {
 
     container.appendChild(this.overlay);
 
+    // Create focus trap for editor
+    this.focusTrap = createFocusTrap(this.overlay);
+
     // Subscribe to locale changes
     this.i18nUnsubscribe = i18n.onChange(() => {
       this.updateLabels();
@@ -123,6 +136,7 @@ export class ScriptEditor {
     }
     this.importBtn.textContent = i18n.t('importScript');
     this.exportBtn.textContent = i18n.t('exportScript');
+    this.exportSRTBtn.textContent = i18n.t('exportSRT');
     this.textarea.placeholder = i18n.t('script');
     this.updateCharCount();
   }
@@ -142,6 +156,11 @@ export class ScriptEditor {
     this.textarea.value = this.state.text;
     this.updateCharCount();
     this.overlay.classList.add("open");
+
+    // Activate focus trap
+    if (this.focusTrap) {
+      this.focusTrap.activate();
+    }
 
     // Focus textarea after animation
     setTimeout(() => {
@@ -165,6 +184,11 @@ export class ScriptEditor {
     this.isOpen = false;
     this.overlay.classList.remove("open");
 
+    // Deactivate focus trap (restores focus to previous element)
+    if (this.focusTrap) {
+      this.focusTrap.deactivate();
+    }
+
     if (this.escKeyHandler) {
       document.removeEventListener("keydown", this.escKeyHandler);
       this.escKeyHandler = null;
@@ -175,9 +199,10 @@ export class ScriptEditor {
     this.state.text = this.textarea.value;
     this.state.scriptEnded = false;
 
-    // Clear cue points that are beyond the new line count
-    const lineCount = this.state.text.split("\n").length;
-    const invalidCuePoints = Array.from(this.state.cuePoints).filter(index => index >= lineCount);
+    // Clear cue points that are beyond the new DISPLAY line count
+    // (cue points are stored as split line indices, not original line indices)
+    const displayLineCount = splitTextIntoLines(this.state.text, this.state.maxWordsPerLine).length;
+    const invalidCuePoints = Array.from(this.state.cuePoints).filter(index => index >= displayLineCount);
     invalidCuePoints.forEach(index => this.state.cuePoints.delete(index));
 
     // Save to localStorage
@@ -209,6 +234,15 @@ export class ScriptEditor {
 
   private handleExport() {
     exportScript(this.textarea.value, 'teleprompter-script.txt');
+  }
+
+  private handleExportSRT() {
+    exportSRT(
+      this.textarea.value,
+      this.state.scrollSpeed,
+      this.state.maxWordsPerLine,
+      'teleprompter-subtitles.srt'
+    );
   }
 
   destroy() {

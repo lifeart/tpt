@@ -1,4 +1,5 @@
 import { i18n, type Translations } from "../i18n";
+import { createFocusTrap, type FocusTrap } from "../focus-trap";
 
 // Help Modal Component (moved from TeleprompterControls)
 export class HelpModal {
@@ -7,6 +8,7 @@ export class HelpModal {
   private escKeyHandler: ((e: KeyboardEvent) => void) | null = null;
   private questionKeyHandler: ((e: KeyboardEvent) => void) | null = null;
   private i18nUnsubscribe: (() => void) | null = null;
+  private focusTrap: FocusTrap | null = null;
 
   constructor(container: HTMLElement) {
     this.overlay = document.createElement("div");
@@ -24,6 +26,9 @@ export class HelpModal {
 
     this.renderContent();
     container.appendChild(this.overlay);
+
+    // Create focus trap for modal
+    this.focusTrap = createFocusTrap(this.overlay);
 
     // Setup global keyboard shortcuts
     this.setupGlobalKeyboardShortcuts();
@@ -90,6 +95,7 @@ export class HelpModal {
       { desc: i18n.t('shortcutJumpToCuePoint'), keys: ['Shift', '↑', '↓'] },
       { desc: i18n.t('shortcutShowHelp'), keys: ['?'] },
       { desc: i18n.t('shortcutCloseDialog'), keys: ['Esc'] },
+      { desc: i18n.t('doubleClickToEdit'), keys: ['Double-click'] },
     ];
 
     shortcuts.forEach(({ desc, keys }) => {
@@ -198,6 +204,11 @@ export class HelpModal {
     this.isVisible = true;
     this.overlay.classList.add("visible");
 
+    // Activate focus trap
+    if (this.focusTrap) {
+      this.focusTrap.activate();
+    }
+
     // Focus close button for accessibility
     const closeBtn = this.overlay.querySelector(".help-modal-close") as HTMLButtonElement;
     if (closeBtn) closeBtn.focus();
@@ -214,6 +225,11 @@ export class HelpModal {
   hide() {
     this.isVisible = false;
     this.overlay.classList.remove("visible");
+
+    // Deactivate focus trap (restores focus to previous element)
+    if (this.focusTrap) {
+      this.focusTrap.deactivate();
+    }
 
     if (this.escKeyHandler) {
       document.removeEventListener("keydown", this.escKeyHandler);

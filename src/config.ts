@@ -11,4 +11,9 @@ export const CONFIG = {
   STORAGE_KEY: "tpt/script",
   COUNTDOWN_SECONDS: 3, // 3-2-1 countdown before scrolling
   RAMP_DURATION: 1000, // ms for speed ramp up/down
+  // New config for Quick UX features
+  OVERLAY_OPACITY: { MIN: 0.3, MAX: 1, DEFAULT: 1, STEP: 0.05 },
+  HORIZONTAL_MARGIN: { MIN: 0, MAX: 40, DEFAULT: 10 },
+  PAGING_TRANSITION_DURATION: 400, // ms for page transitions
+  PAGING_OVERLAP: 0.1, // 10% overlap between pages
 } as const;

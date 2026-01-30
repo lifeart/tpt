@@ -13,6 +13,29 @@
   border: 0;
 }
 
+/* Skip link - visible only when focused (A11Y) */
+.skip-link {
+  position: absolute;
+  top: -100%;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 12px 24px;
+  background: var(--apple-system-blue);
+  color: var(--apple-text-primary);
+  font-size: var(--font-md);
+  font-weight: 600;
+  border-radius: var(--radius-md);
+  text-decoration: none;
+  z-index: 10000;
+  transition: top var(--transition-fast);
+}
+
+.skip-link:focus {
+  top: 16px;
+  outline: 2px solid var(--apple-text-primary);
+  outline-offset: 2px;
+}
+
 /* Base styles - Apple San Francisco font stack */
 :root {
   font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, sans-serif;
@@ -122,6 +145,8 @@ body {
   will-change: transform; /* Hardware acceleration hint */
   transform: translateZ(0); /* Force hardware acceleration */
   -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
+  position: relative;
+  z-index: 1; /* Lower than reading guide (z-index: 10) so reading guide overlays text */
 }
 
 /* Inner text wrapper for transforms */
@@ -135,6 +160,22 @@ body {
   padding: 0.25rem 0;
   position: relative;
   contain: content; /* Limit repaint area */
+  cursor: default;
+}
+
+/* Inline edit affordance: show text cursor on hover when not scrolling */
+.teleprompter-container:not(.is-scrolling) .line:hover {
+  cursor: text;
+}
+
+/* Visual feedback on hover for editable lines (when not scrolling) */
+.teleprompter-container:not(.is-scrolling) .line:hover::after {
+  content: "";
+  position: absolute;
+  inset: 0 -8px;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: var(--radius-xs);
+  pointer-events: none;
 }
 
 /* Cue point indicator */
@@ -925,6 +966,39 @@ button {
   outline-offset: 2px;
 }
 
+/* Reset to defaults button */
+.drawer-reset-btn {
+  flex: 1;
+  padding: 14px;
+  border-radius: var(--radius-lg);
+  border: none;
+  background: var(--apple-fill-secondary);
+  color: var(--apple-system-orange);
+  font-size: var(--font-md);
+  font-weight: 500;
+  letter-spacing: -0.4px;
+  cursor: pointer;
+  transition: background var(--transition-fast), transform var(--transition-press);
+}
+
+.drawer-reset-btn:hover {
+  background: var(--apple-fill-primary);
+}
+
+.drawer-reset-btn:active {
+  transform: scale(0.98);
+}
+
+.drawer-reset-btn:focus-visible {
+  outline: 2px solid var(--apple-system-blue);
+  outline-offset: 2px;
+}
+
+/* Bottom buttons container - close button takes more space */
+.drawer-bottom-buttons .drawer-close-btn {
+  flex: 2;
+}
+
 /* ============================================
    SCRIPT EDITOR (Apple-style full-screen)
    ============================================ */
@@ -1558,4 +1632,286 @@ button {
     min-width: 44px;
     min-height: 44px;
   }
+}
+
+/* ============================================
+   NEW FEATURES STYLES
+   ============================================ */
+
+/* Page indicator for paging mode */
+.toolbar-page-indicator {
+  display: flex;
+  align-items: center;
+  padding: 6px 12px;
+  background: var(--apple-fill-tertiary);
+  border-radius: var(--radius-pill);
+  font-size: var(--font-xs);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  color: var(--apple-text-secondary);
+  letter-spacing: -0.2px;
+  white-space: nowrap;
+}
+
+/* Scroll mode button */
+.toolbar-btn-mode {
+  background: var(--apple-fill-secondary);
+  color: var(--apple-text-primary);
+}
+
+.toolbar-btn-mode:hover {
+  background: var(--apple-fill-primary);
+}
+
+/* Remote button */
+.toolbar-btn-remote {
+  background: var(--apple-fill-secondary);
+  color: var(--apple-system-blue);
+}
+
+.toolbar-btn-remote:hover {
+  background: var(--apple-fill-primary);
+}
+
+/* Contrast indicator in settings */
+.contrast-indicator {
+  display: block;
+  padding: 8px 16px;
+  font-size: var(--font-xs);
+  font-weight: 500;
+  letter-spacing: -0.08px;
+}
+
+/* Inline editor for edit-while-prompting */
+.inline-editor {
+  position: absolute;
+  width: 100%;
+  font-family: inherit;
+  font-size: inherit;
+  color: inherit;
+  background: rgba(0, 0, 0, 0.9);
+  border: 2px solid var(--apple-system-blue);
+  border-radius: var(--radius-sm);
+  padding: 4px 8px;
+  resize: none;
+  outline: none;
+  z-index: 100;
+  box-sizing: border-box;
+  line-height: inherit;
+}
+
+.inline-editor:focus {
+  box-shadow: 0 0 0 4px rgba(10, 132, 255, 0.3);
+}
+
+/* Voice mode indicator */
+.voice-indicator {
+  position: absolute;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: var(--apple-fill-secondary);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-radius: var(--radius-pill);
+  font-size: var(--font-xs);
+  color: var(--apple-text-secondary);
+  z-index: 50;
+}
+
+.voice-indicator.active {
+  background: rgba(52, 199, 89, 0.2);
+  color: var(--apple-toggle-on);
+}
+
+.voice-indicator .mic-icon {
+  width: 16px;
+  height: 16px;
+}
+
+/* Mic level indicator */
+.mic-level {
+  width: 40px;
+  height: 4px;
+  background: var(--apple-fill-tertiary);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.mic-level-bar {
+  height: 100%;
+  background: var(--apple-toggle-on);
+  transition: width 100ms ease-out;
+}
+
+/* Recognized text preview */
+.recognized-text {
+  position: absolute;
+  bottom: calc(var(--toolbar-height) + 20px);
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 8px 16px;
+  background: var(--apple-material-thick);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-radius: var(--radius-md);
+  font-size: var(--font-sm);
+  color: var(--apple-text-secondary);
+  max-width: 80%;
+  text-align: center;
+  z-index: 50;
+  opacity: 0;
+  transition: opacity var(--transition-fast);
+}
+
+.recognized-text.visible {
+  opacity: 1;
+}
+
+/* Remote control styles (for remote.html) */
+.remote-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 24px;
+  gap: 24px;
+  background: var(--apple-bg-primary);
+  color: var(--apple-text-primary);
+}
+
+.remote-title {
+  font-size: var(--font-lg);
+  font-weight: 600;
+  letter-spacing: -0.4px;
+}
+
+.remote-status {
+  font-size: var(--font-sm);
+  color: var(--apple-text-secondary);
+}
+
+.remote-status.connected {
+  color: var(--apple-toggle-on);
+}
+
+.remote-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: 100%;
+  max-width: 300px;
+}
+
+.remote-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 16px 24px;
+  border: none;
+  border-radius: var(--radius-lg);
+  font-size: var(--font-md);
+  font-weight: 600;
+  cursor: pointer;
+  transition: background var(--transition-fast), transform var(--transition-press);
+}
+
+.remote-btn:active {
+  transform: scale(0.98);
+}
+
+.remote-btn-primary {
+  background: var(--apple-toggle-on);
+  color: var(--apple-text-primary);
+}
+
+.remote-btn-primary.playing {
+  background: var(--apple-system-red);
+}
+
+.remote-btn-secondary {
+  background: var(--apple-fill-secondary);
+  color: var(--apple-text-primary);
+}
+
+.remote-progress {
+  width: 100%;
+  height: 4px;
+  background: var(--apple-fill-tertiary);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.remote-progress-bar {
+  height: 100%;
+  background: var(--apple-system-blue);
+  transition: width 200ms ease-out;
+}
+
+.remote-cue-list {
+  width: 100%;
+  max-width: 300px;
+  background: var(--apple-grouped-bg);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.remote-cue-item {
+  padding: 12px 16px;
+  border-bottom: 0.5px solid var(--apple-separator);
+  cursor: pointer;
+  transition: background var(--transition-fast);
+}
+
+.remote-cue-item:last-child {
+  border-bottom: none;
+}
+
+.remote-cue-item:hover {
+  background: var(--apple-fill-tertiary);
+}
+
+/* Talent display styles (for talent.html) */
+.talent-container {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--apple-bg-primary);
+  overflow: hidden;
+}
+
+.talent-display {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.talent-status {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  padding: 8px 12px;
+  background: var(--apple-fill-secondary);
+  border-radius: var(--radius-pill);
+  font-size: var(--font-xs);
+  color: var(--apple-text-secondary);
+  z-index: 100;
+  opacity: 0.5;
+  transition: opacity var(--transition-fast);
+}
+
+.talent-status:hover {
+  opacity: 1;
+}
+
+.talent-status.synced {
+  color: var(--apple-toggle-on);
 }

@@ -1,7 +1,10 @@
 import { CONFIG } from "../config";
 import { getFontFamily } from "../fonts";
 import type { TeleprompterState } from "../state";
-import { splitTextIntoLines } from "../utils";
+import type { PageChangedDetail } from "../types";
+import { splitTextIntoLines, isRTL, parseHexColor } from "../utils";
+import { VoiceScrollEngine, isVoiceSupported } from "../voice-scroll";
+import { i18n } from "../i18n";
 
 // Teleprompter Display Component
 export class TeleprompterDisplay {
@@ -28,9 +31,21 @@ export class TeleprompterDisplay {
   private keydownHandler: ((e: KeyboardEvent) => void) | null = null;
   private backToTopHandler: ((e: CustomEvent<void>) => void) | null = null;
   private wheelHandler: ((e: WheelEvent) => void) | null = null;
+  private scrollModeChangedHandler: (() => void) | null = null;
+  private advancePageHandler: ((e: CustomEvent<{ direction: 1 | -1 }>) => void) | null = null;
   // Smooth scroll animation state
   private smoothScrollAnimationId: number | null = null;
   private targetTranslateY: number = 0;
+  // Paging mode state
+  private totalPages: number = 1;
+  // Inline editing state
+  private inlineEditor: HTMLTextAreaElement | null = null;
+  private editingLineIndex: number = -1;
+  // Voice scroll state
+  private voiceEngine: VoiceScrollEngine | null = null;
+  private voiceIndicator: HTMLDivElement | null = null;
+  private recognizedTextDisplay: HTMLDivElement | null = null;
+  private recognizedTextTimeout: number | null = null;
 
   constructor(container: HTMLElement, state: TeleprompterState) {
     this.state = state;
@@ -82,7 +97,10 @@ export class TeleprompterDisplay {
     this.updateTelepromptText();
     this.setupKeyboardNavigation();
     this.setupWheelNavigation();
-    this.setupCustomEventListeners(); // Add setup for custom events
+    this.setupCustomEventListeners();
+    this.setupInlineEditing();
+    this.setupVoiceScroll();
+    this.calculateTotalPages();
   }
 
   private setupWheelNavigation() {
@@ -226,8 +244,23 @@ export class TeleprompterDisplay {
         return;
       }
       if (e.key === " ") {
-        // Space bar toggles play/pause
+        // In paging mode, Space advances to next page
+        if (this.state.scrollMode === 'paging' && !this.state.isScrolling) {
+          this.advancePage(1);
+          e.preventDefault();
+          return;
+        }
+        // Otherwise, Space toggles play/pause
         this.toggleScrolling();
+        e.preventDefault();
+        return;
+      }
+      // Enter key advances page in paging mode
+      if (e.key === "Enter" && this.state.scrollMode === 'paging' && !this.state.isScrolling) {
+        if (e.target instanceof HTMLTextAreaElement || e.target instanceof HTMLInputElement) {
+          return;
+        }
+        this.advancePage(1);
         e.preventDefault();
         return;
       }
@@ -332,8 +365,21 @@ export class TeleprompterDisplay {
     this.cachedLines = null;
     this.cachedLineHeight = 0;
 
+    // Update voice engine word index if active
+    if (this.voiceEngine && this.state.scrollMode === 'voice') {
+      this.voiceEngine.updateScript(this.state.text, this.state.maxWordsPerLine);
+    }
+
     // Use DocumentFragment for better performance
     const fragment = document.createDocumentFragment();
+
+    // Add spacer at the beginning for half the container height
+    // This ensures text starts from the center of the screen (teleprompter reading position)
+    const topSpacer = document.createElement("div");
+    topSpacer.className = "teleprompter-top-spacer";
+    topSpacer.style.height = CONFIG.SPACER_HEIGHT;
+    topSpacer.style.pointerEvents = "none";
+    fragment.appendChild(topSpacer);
 
     // Split text into lines using shared utility
     const lines = splitTextIntoLines(this.state.text, this.state.maxWordsPerLine);
@@ -443,6 +489,8 @@ export class TeleprompterDisplay {
     if (Math.abs(this.currentTranslateY) + containerHeight >= totalHeight - CONFIG.END_THRESHOLD && !this.state.scriptEnded) {
       this.toggleScrolling(); // Auto-pause when reaching the end
       this.state.scriptEnded = true; // Set flag when script ends
+      // Remove is-scrolling class to enable inline edit affordance
+      this.element.classList.remove("is-scrolling");
       // Exit fullscreen (standard + Safari)
       const doc = document as Document & {
         webkitFullscreenElement?: Element;
@@ -546,6 +594,22 @@ export class TeleprompterDisplay {
   }
 
   toggleScrolling() {
+    // In voice mode, toggle voice listening instead of continuous scroll
+    if (this.state.scrollMode === 'voice' && this.voiceEngine) {
+      if (this.voiceEngine.isActive()) {
+        this.stopVoiceMode();
+        document.dispatchEvent(new CustomEvent("scrolling-toggled", {
+          detail: { isScrolling: false, isCountingDown: false },
+        }));
+      } else {
+        this.startVoiceMode();
+        document.dispatchEvent(new CustomEvent("scrolling-toggled", {
+          detail: { isScrolling: true, isCountingDown: false },
+        }));
+      }
+      return;
+    }
+
     // If currently counting down, cancel and return to idle
     if (this.isCountingDown) {
       this.cancelCountdown();
@@ -580,6 +644,8 @@ export class TeleprompterDisplay {
         this.state.isScrolling = false;
         this.isRampingDown = false;
         this.rampDownTimeoutId = null;
+        // Remove is-scrolling class to enable inline edit affordance
+        this.element.classList.remove("is-scrolling");
         // Notify that scrolling state changed
         document.dispatchEvent(new CustomEvent("scrolling-toggled", {
           detail: { isScrolling: false, isCountingDown: false },
@@ -614,6 +680,8 @@ export class TeleprompterDisplay {
         this.lastTimestamp = performance.now();
         this.lastActiveLineUpdate = 0; // Reset throttle
         this.animationFrameId = window.requestAnimationFrame(this.animateScroll);
+        // Add is-scrolling class to disable inline edit affordance
+        this.element.classList.add("is-scrolling");
         // Notify that scrolling state changed
         document.dispatchEvent(new CustomEvent("scrolling-toggled", {
           detail: { isScrolling: true, isCountingDown: false },
@@ -633,6 +701,8 @@ export class TeleprompterDisplay {
         this.state.isScrolling = false;
         this.isRampingUp = false;
         this.isRampingDown = false;
+        // Remove is-scrolling class to enable inline edit affordance
+        this.element.classList.remove("is-scrolling");
         // Notify UI that scrolling stopped
         document.dispatchEvent(new CustomEvent("scrolling-toggled", {
           detail: { isScrolling: false, isCountingDown: false },
@@ -676,10 +746,60 @@ export class TeleprompterDisplay {
       }
 
       this.state.activeLineIndex = 0;
+      this.state.currentPage = 0;
       this.state.scriptEnded = false;
       this.updateTelepromptText();
+      this.calculateTotalPages();
+
+      // Reset voice engine position tracking
+      if (this.voiceEngine) {
+        this.voiceEngine.reset();
+      }
+
+      // Notify of page reset in paging mode
+      if (this.state.scrollMode === 'paging') {
+        document.dispatchEvent(new CustomEvent<PageChangedDetail>("page-changed", {
+          detail: { currentPage: 0, totalPages: this.totalPages }
+        }));
+      }
     };
     document.addEventListener("back-to-top", this.backToTopHandler as EventListener);
+
+    // Listen for scroll mode changes
+    this.scrollModeChangedHandler = () => {
+      this.calculateTotalPages();
+      if (this.state.scrollMode === 'paging') {
+        // Reset to first page
+        this.state.currentPage = 0;
+        this.scrollToPage(0);
+        document.dispatchEvent(new CustomEvent<PageChangedDetail>("page-changed", {
+          detail: { currentPage: 0, totalPages: this.totalPages }
+        }));
+        // Stop voice mode if active and hide indicator
+        this.stopVoiceMode();
+        if (this.voiceIndicator) {
+          this.voiceIndicator.style.display = "none";
+        }
+      } else if (this.state.scrollMode === 'voice') {
+        // Show voice indicator (user clicks Play to start listening)
+        if (this.voiceIndicator) {
+          this.voiceIndicator.style.display = "flex";
+        }
+      } else {
+        // Continuous mode - stop voice if active and hide indicator
+        this.stopVoiceMode();
+        if (this.voiceIndicator) {
+          this.voiceIndicator.style.display = "none";
+        }
+      }
+    };
+    document.addEventListener("scroll-mode-changed", this.scrollModeChangedHandler as EventListener);
+
+    // Listen for page advance events
+    this.advancePageHandler = (e: CustomEvent<{ direction: 1 | -1 }>) => {
+      this.advancePage(e.detail.direction);
+    };
+    document.addEventListener("advance-page", this.advancePageHandler as EventListener);
   }
 
   // Compose transform from translateY and flip state - prevents accumulation
@@ -698,8 +818,31 @@ export class TeleprompterDisplay {
     this.telepromptTextInner.style.color = this.state.fontColor;
     this.telepromptTextInner.style.lineHeight = `${this.state.lineSpacing}`;
     this.telepromptTextInner.style.letterSpacing = `${this.state.letterSpacing}px`;
+
+    // Apply horizontal margins
+    const marginPercent = this.state.horizontalMargin;
+    this.telepromptTextInner.style.paddingLeft = `${marginPercent}%`;
+    this.telepromptTextInner.style.paddingRight = `${marginPercent}%`;
+
+    // Apply RTL text direction
+    const textDirection = this.getEffectiveTextDirection();
+    this.telepromptTextInner.dir = textDirection;
+
     if (this.element) {
-      this.element.style.backgroundColor = this.state.backgroundColor;
+      // Apply overlay opacity to background
+      const bgColor = this.state.backgroundColor;
+      const opacity = this.state.overlayOpacity;
+      if (opacity < 1) {
+        // Convert hex to rgba with opacity
+        const rgb = parseHexColor(bgColor);
+        if (rgb) {
+          this.element.style.backgroundColor = `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${opacity})`;
+        } else {
+          this.element.style.backgroundColor = bgColor;
+        }
+      } else {
+        this.element.style.backgroundColor = bgColor;
+      }
       this.element.classList.toggle("flipped", this.state.isFlipped);
     }
     // Update reading guide state and size
@@ -717,6 +860,15 @@ export class TeleprompterDisplay {
     // Reset scriptEnded flag if text changes or styles affecting layout change
     this.state.scriptEnded = false;
     this.updateTelepromptText();
+    // Recalculate pages after style changes
+    this.calculateTotalPages();
+  }
+
+  private getEffectiveTextDirection(): 'ltr' | 'rtl' {
+    if (this.state.textDirection === 'auto') {
+      return isRTL(this.state.text) ? 'rtl' : 'ltr';
+    }
+    return this.state.textDirection === 'rtl' ? 'rtl' : 'ltr';
   }
 
   private updateActiveLine() {
@@ -771,6 +923,350 @@ export class TeleprompterDisplay {
     }
   }
 
+  // ============================================
+  // Paging Mode Support
+  // ============================================
+
+  private calculateTotalPages() {
+    if (!this.telepromptText || !this.telepromptTextInner) return;
+    const containerHeight = this.telepromptText.clientHeight;
+    const contentHeight = this.telepromptTextInner.scrollHeight;
+    const pageHeight = containerHeight * (1 - CONFIG.PAGING_OVERLAP);
+    this.totalPages = Math.max(1, Math.ceil(contentHeight / pageHeight));
+  }
+
+  private advancePage(direction: 1 | -1) {
+    if (this.state.scrollMode !== 'paging') return;
+
+    const newPage = this.state.currentPage + direction;
+    if (newPage < 0 || newPage >= this.totalPages) return;
+
+    this.state.currentPage = newPage;
+    this.scrollToPage(newPage);
+
+    // Notify toolbar of page change
+    document.dispatchEvent(new CustomEvent<PageChangedDetail>("page-changed", {
+      detail: { currentPage: newPage, totalPages: this.totalPages }
+    }));
+  }
+
+  private scrollToPage(pageIndex: number) {
+    if (!this.telepromptText || !this.telepromptTextInner) return;
+
+    const containerHeight = this.telepromptText.clientHeight;
+    const pageHeight = containerHeight * (1 - CONFIG.PAGING_OVERLAP);
+    const targetY = -pageIndex * pageHeight;
+
+    // Apply smooth transition for page change
+    this.telepromptTextInner.style.transition = `transform ${CONFIG.PAGING_TRANSITION_DURATION}ms ease-out`;
+    this.currentTranslateY = targetY;
+    this.targetTranslateY = targetY;
+    this.applyTransform();
+
+    // Remove transition after animation completes
+    setTimeout(() => {
+      if (this.telepromptTextInner) {
+        this.telepromptTextInner.style.transition = "none";
+      }
+      this.updateActiveLine();
+    }, CONFIG.PAGING_TRANSITION_DURATION);
+  }
+
+  // ============================================
+  // Inline Editing Support
+  // ============================================
+
+  private setupInlineEditing() {
+    // Double-click to edit a line
+    this.telepromptTextInner.addEventListener("dblclick", (e: MouseEvent) => {
+      if (this.state.isScrolling) return; // Don't allow editing while scrolling
+
+      const target = e.target as HTMLElement;
+      if (!target.classList.contains("line")) return;
+
+      const lineIndex = parseInt(target.dataset.index || "-1", 10);
+      if (lineIndex < 0) return;
+
+      this.startInlineEdit(lineIndex, target);
+    });
+  }
+
+  // ============================================
+  // Voice Scroll Support
+  // ============================================
+
+  private setupVoiceScroll() {
+    // Create voice indicator UI
+    this.voiceIndicator = document.createElement("div");
+    this.voiceIndicator.className = "voice-indicator";
+    this.voiceIndicator.innerHTML = `
+      <svg class="mic-icon" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/>
+        <path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/>
+      </svg>
+      <span class="voice-status">${i18n.t('voiceScrolling')}</span>
+      <div class="mic-level"><div class="mic-level-bar" style="width: 0%"></div></div>
+    `;
+    this.voiceIndicator.style.display = "none";
+    this.element.appendChild(this.voiceIndicator);
+
+    // Create recognized text display
+    this.recognizedTextDisplay = document.createElement("div");
+    this.recognizedTextDisplay.className = "recognized-text";
+    this.element.appendChild(this.recognizedTextDisplay);
+
+    // Initialize voice engine with callbacks
+    this.voiceEngine = new VoiceScrollEngine({
+      onScrollTo: (lineIndex: number) => {
+        // Scroll to the matched line
+        this.state.activeLineIndex = lineIndex;
+        this.scrollToLine(lineIndex);
+        this.updateTelepromptText();
+      },
+      onRecognizedText: (text: string) => {
+        this.showRecognizedText(text);
+      },
+      onConfidenceChange: (_confidence: number) => {
+        // Could show confidence indicator if desired
+      },
+      onMicLevelChange: (level: number) => {
+        // Update mic level bar
+        const levelBar = this.voiceIndicator?.querySelector(".mic-level-bar") as HTMLElement;
+        if (levelBar) {
+          levelBar.style.width = `${level * 100}%`;
+        }
+      },
+      onError: (error: string) => {
+        this.showRecognizedText(error);
+        // If permission denied or not supported, switch back to continuous mode
+        if (error.includes("permission") || error.includes("not supported")) {
+          this.state.scrollMode = "continuous";
+          this.state.saveSettings();
+          document.dispatchEvent(new CustomEvent("scroll-mode-changed"));
+        }
+      },
+      onStatusChange: (isListening: boolean) => {
+        if (this.voiceIndicator) {
+          this.voiceIndicator.classList.toggle("active", isListening);
+          const statusEl = this.voiceIndicator.querySelector(".voice-status");
+          if (statusEl) {
+            statusEl.textContent = isListening
+              ? i18n.t('microphoneActive')
+              : i18n.t('voiceScrolling');
+          }
+        }
+      },
+    });
+
+    // Set language based on browser locale
+    this.voiceEngine.setLanguage(navigator.language);
+
+    // Build initial word index
+    this.voiceEngine.updateScript(this.state.text, this.state.maxWordsPerLine);
+
+    // If in voice mode, just show indicator (user clicks Play to start listening)
+    if (this.state.scrollMode === "voice") {
+      if (this.voiceIndicator) {
+        this.voiceIndicator.style.display = "flex";
+      }
+    }
+  }
+
+  private startVoiceMode() {
+    if (!this.voiceEngine) return;
+
+    // Check browser support first
+    if (!isVoiceSupported()) {
+      this.showRecognizedText(i18n.t('voiceNotSupported'));
+      // Switch back to continuous mode
+      this.state.scrollMode = "continuous";
+      this.state.saveSettings();
+      document.dispatchEvent(new CustomEvent("scroll-mode-changed"));
+      return;
+    }
+
+    // Show voice indicator
+    if (this.voiceIndicator) {
+      this.voiceIndicator.style.display = "flex";
+    }
+
+    // Rebuild word index with current settings
+    this.voiceEngine.updateScript(this.state.text, this.state.maxWordsPerLine);
+
+    // Start listening
+    const started = this.voiceEngine.start();
+
+    // Emit scrolling-toggled to update play/pause button state
+    if (started) {
+      document.dispatchEvent(new CustomEvent("scrolling-toggled", {
+        detail: { isScrolling: true, isCountingDown: false },
+      }));
+    }
+  }
+
+  private stopVoiceMode() {
+    if (!this.voiceEngine) return;
+
+    const wasActive = this.voiceEngine.isActive();
+
+    // Stop listening
+    this.voiceEngine.stop();
+
+    // Note: we don't hide the voice indicator here - caller handles that
+    // based on whether we're switching modes or just pausing
+
+    // Hide recognized text
+    if (this.recognizedTextDisplay) {
+      this.recognizedTextDisplay.classList.remove("visible");
+    }
+
+    // Only emit if we actually stopped something
+    if (wasActive) {
+      document.dispatchEvent(new CustomEvent("scrolling-toggled", {
+        detail: { isScrolling: false, isCountingDown: false },
+      }));
+    }
+  }
+
+  private showRecognizedText(text: string) {
+    if (!this.recognizedTextDisplay) return;
+
+    this.recognizedTextDisplay.textContent = text;
+    this.recognizedTextDisplay.classList.add("visible");
+
+    // Clear previous timeout
+    if (this.recognizedTextTimeout !== null) {
+      clearTimeout(this.recognizedTextTimeout);
+    }
+
+    // Hide after 2 seconds
+    this.recognizedTextTimeout = window.setTimeout(() => {
+      if (this.recognizedTextDisplay) {
+        this.recognizedTextDisplay.classList.remove("visible");
+      }
+      this.recognizedTextTimeout = null;
+    }, 2000);
+  }
+
+  private startInlineEdit(lineIndex: number, lineElement: HTMLElement) {
+    // Disable inline editing when word wrapping is enabled
+    // because it would corrupt the original text structure
+    if (this.state.maxWordsPerLine > 0) {
+      // Show feedback - tell user to use editor or disable word wrapping
+      this.showRecognizedText(`${i18n.t('editScript')} (${i18n.t('maxWordsPerLine')}: ${this.state.maxWordsPerLine})`);
+      return;
+    }
+
+    if (this.inlineEditor) {
+      this.finishInlineEdit();
+    }
+
+    this.editingLineIndex = lineIndex;
+
+    // Get the line's text content (simple case: display lines match original)
+    const lines = this.state.text.split("\n");
+    const lineText = lines[lineIndex] || "";
+
+    // Create inline editor
+    this.inlineEditor = document.createElement("textarea");
+    this.inlineEditor.className = "inline-editor";
+    this.inlineEditor.value = lineText.trim() === "\u00A0" ? "" : lineText; // Handle nbsp for empty lines
+    this.inlineEditor.style.cssText = `
+      position: absolute;
+      width: ${lineElement.offsetWidth}px;
+      min-height: ${lineElement.offsetHeight}px;
+      font-family: inherit;
+      font-size: inherit;
+      color: inherit;
+      background: rgba(0, 0, 0, 0.8);
+      border: 2px solid var(--apple-system-blue);
+      border-radius: 4px;
+      padding: 4px 8px;
+      resize: none;
+      outline: none;
+      z-index: 100;
+      box-sizing: border-box;
+    `;
+
+    // Position the editor over the line
+    const rect = lineElement.getBoundingClientRect();
+    const containerRect = this.telepromptTextInner.getBoundingClientRect();
+    this.inlineEditor.style.left = `${rect.left - containerRect.left}px`;
+    this.inlineEditor.style.top = `${rect.top - containerRect.top}px`;
+
+    // Hide the original line
+    lineElement.style.visibility = "hidden";
+
+    // Add editor to the container
+    this.telepromptTextInner.style.position = "relative";
+    this.telepromptTextInner.appendChild(this.inlineEditor);
+
+    // Focus and select all
+    this.inlineEditor.focus();
+    this.inlineEditor.select();
+
+    // Handle blur (click outside)
+    this.inlineEditor.addEventListener("blur", () => {
+      this.finishInlineEdit();
+    });
+
+    // Handle Escape to cancel
+    this.inlineEditor.addEventListener("keydown", (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        this.cancelInlineEdit();
+      } else if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        this.finishInlineEdit();
+      }
+    });
+  }
+
+  private finishInlineEdit() {
+    if (!this.inlineEditor || this.editingLineIndex < 0) return;
+
+    const newText = this.inlineEditor.value;
+    const originalLines = this.state.text.split("\n");
+
+    // Update the specific line (safe because inline editing is disabled when maxWordsPerLine > 0)
+    if (this.editingLineIndex < originalLines.length) {
+      originalLines[this.editingLineIndex] = newText;
+      this.state.text = originalLines.join("\n");
+    }
+
+    // Save to localStorage
+    try {
+      localStorage.setItem(CONFIG.STORAGE_KEY, this.state.text);
+    } catch (e) {
+      console.warn("Could not save script:", e);
+    }
+
+    this.cleanupInlineEditor();
+    this.updateTelepromptText();
+    this.state.saveSettings();
+  }
+
+  private cancelInlineEdit() {
+    this.cleanupInlineEditor();
+    // Restore visibility of the line
+    const lineElement = this.element.querySelector(`.line[data-index="${this.editingLineIndex}"]`) as HTMLElement;
+    if (lineElement) {
+      lineElement.style.visibility = "";
+    }
+  }
+
+  private cleanupInlineEditor() {
+    if (this.inlineEditor && this.inlineEditor.parentNode) {
+      this.inlineEditor.parentNode.removeChild(this.inlineEditor);
+    }
+    this.inlineEditor = null;
+    this.editingLineIndex = -1;
+  }
+
+  // ============================================
+  // Updated Event Handlers
+  // ============================================
+
   // Cleanup method to remove event listeners and clear timers
   destroy() {
     // Remove event listeners
@@ -785,6 +1281,27 @@ export class TeleprompterDisplay {
     if (this.wheelHandler && this.telepromptText) {
       this.telepromptText.removeEventListener("wheel", this.wheelHandler);
       this.wheelHandler = null;
+    }
+    if (this.scrollModeChangedHandler) {
+      document.removeEventListener("scroll-mode-changed", this.scrollModeChangedHandler as EventListener);
+      this.scrollModeChangedHandler = null;
+    }
+    if (this.advancePageHandler) {
+      document.removeEventListener("advance-page", this.advancePageHandler as EventListener);
+      this.advancePageHandler = null;
+    }
+
+    // Cleanup inline editor
+    this.cleanupInlineEditor();
+
+    // Cleanup voice engine
+    if (this.voiceEngine) {
+      this.voiceEngine.destroy();
+      this.voiceEngine = null;
+    }
+    if (this.recognizedTextTimeout !== null) {
+      clearTimeout(this.recognizedTextTimeout);
+      this.recognizedTextTimeout = null;
     }
 
     // Clear intervals and timeouts

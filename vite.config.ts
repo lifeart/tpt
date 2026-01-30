@@ -1,5 +1,6 @@
 import { defineConfig } from 'vite'
 import tailwindcss from '@tailwindcss/vite'
+import { resolve } from 'path'
 
 export default defineConfig({
   plugins: [
@@ -16,6 +17,11 @@ export default defineConfig({
     sourcemap: false,
     // Optimize chunk size
     rollupOptions: {
+      input: {
+        main: resolve(__dirname, 'index.html'),
+        remote: resolve(__dirname, 'remote.html'),
+        talent: resolve(__dirname, 'talent.html'),
+      },
       output: {
         manualChunks: undefined,
       },

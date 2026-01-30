@@ -136,6 +136,69 @@ export interface Translations {
   // Import/Export
   importScript: string;
   exportScript: string;
+
+  // Scroll modes
+  scrollMode: string;
+  continuous: string;
+  paging: string;
+  voice: string;
+  pageIndicator: string;
+
+  // Overlay transparency
+  overlayMode: string;
+  overlayOpacity: string;
+  overlayModeDescription: string;
+
+  // Side margins
+  horizontalMargin: string;
+
+  // WPM display
+  wpm: string;
+
+  // Voice scroll
+  voiceScrolling: string;
+  voiceNotSupported: string;
+  voicePermissionDenied: string;
+  listeningFor: string;
+  microphoneActive: string;
+
+  // RTL support
+  textDirection: string;
+  autoDetect: string;
+  leftToRight: string;
+  rightToLeft: string;
+
+  // SRT export
+  exportSRT: string;
+
+  // Theme presets
+  themePresets: string;
+  contrastRatio: string;
+  contrastWarning: string;
+
+  // Remote control
+  openRemote: string;
+  remoteControl: string;
+  remoteConnected: string;
+  remoteDisconnected: string;
+  openTalentDisplay: string;
+  talentDisplay: string;
+
+  // Gamepad
+  gamepadConnected: string;
+  gamepadDisconnected: string;
+
+  // Edit while prompting
+  doubleClickToEdit: string;
+  clickOutsideToSave: string;
+
+  // Talent display
+  waitingForSync: string;
+  synced: string;
+  broadcastNotSupported: string;
+
+  // Settings
+  resetToDefaults: string;
 }
 
 const translations: Record<Locale, Translations> = {
@@ -250,6 +313,69 @@ Press the Play button to start scrolling.`,
 
     importScript: 'Import',
     exportScript: 'Export',
+
+    // Scroll modes
+    scrollMode: 'Scroll Mode',
+    continuous: 'Continuous',
+    paging: 'Paging',
+    voice: 'Voice Follow',
+    pageIndicator: 'Page',
+
+    // Overlay transparency
+    overlayMode: 'Overlay Mode',
+    overlayOpacity: 'Opacity',
+    overlayModeDescription: 'Transparent background for overlay on meetings',
+
+    // Side margins
+    horizontalMargin: 'Side Margins',
+
+    // WPM display
+    wpm: 'wpm',
+
+    // Voice scroll
+    voiceScrolling: 'Voice Scrolling',
+    voiceNotSupported: 'Voice recognition not supported in this browser',
+    voicePermissionDenied: 'Microphone permission denied',
+    listeningFor: 'Listening for',
+    microphoneActive: 'Microphone active',
+
+    // RTL support
+    textDirection: 'Text Direction',
+    autoDetect: 'Auto-detect',
+    leftToRight: 'Left to Right',
+    rightToLeft: 'Right to Left',
+
+    // SRT export
+    exportSRT: 'Export SRT',
+
+    // Theme presets
+    themePresets: 'Theme',
+    contrastRatio: 'Contrast',
+    contrastWarning: 'Low contrast - may be hard to read',
+
+    // Remote control
+    openRemote: 'Remote',
+    remoteControl: 'Remote Control',
+    remoteConnected: 'Remote connected',
+    remoteDisconnected: 'Remote disconnected',
+    openTalentDisplay: 'Talent Display',
+    talentDisplay: 'Talent Display',
+
+    // Gamepad
+    gamepadConnected: 'Controller connected',
+    gamepadDisconnected: 'Controller disconnected',
+
+    // Edit while prompting
+    doubleClickToEdit: 'Double-click to edit',
+    clickOutsideToSave: 'Click outside to save',
+
+    // Talent display
+    waitingForSync: 'Waiting for sync...',
+    synced: 'Synced',
+    broadcastNotSupported: 'BroadcastChannel not supported',
+
+    // Settings
+    resetToDefaults: 'Reset',
   },
 
   ru: {
@@ -363,6 +489,69 @@ Press the Play button to start scrolling.`,
 
     importScript: 'Импорт',
     exportScript: 'Экспорт',
+
+    // Scroll modes
+    scrollMode: 'Режим прокрутки',
+    continuous: 'Непрерывный',
+    paging: 'Постраничный',
+    voice: 'Голосовой',
+    pageIndicator: 'Страница',
+
+    // Overlay transparency
+    overlayMode: 'Режим наложения',
+    overlayOpacity: 'Прозрачность',
+    overlayModeDescription: 'Прозрачный фон для наложения на видеозвонки',
+
+    // Side margins
+    horizontalMargin: 'Боковые поля',
+
+    // WPM display
+    wpm: 'сл/мин',
+
+    // Voice scroll
+    voiceScrolling: 'Голосовая прокрутка',
+    voiceNotSupported: 'Голосовое управление не поддерживается в этом браузере',
+    voicePermissionDenied: 'Доступ к микрофону запрещён',
+    listeningFor: 'Слушаю',
+    microphoneActive: 'Микрофон активен',
+
+    // RTL support
+    textDirection: 'Направление текста',
+    autoDetect: 'Автоопределение',
+    leftToRight: 'Слева направо',
+    rightToLeft: 'Справа налево',
+
+    // SRT export
+    exportSRT: 'Экспорт SRT',
+
+    // Theme presets
+    themePresets: 'Тема',
+    contrastRatio: 'Контраст',
+    contrastWarning: 'Низкий контраст - может быть сложно читать',
+
+    // Remote control
+    openRemote: 'Пульт',
+    remoteControl: 'Дистанционное управление',
+    remoteConnected: 'Пульт подключён',
+    remoteDisconnected: 'Пульт отключён',
+    openTalentDisplay: 'Дисплей спикера',
+    talentDisplay: 'Дисплей спикера',
+
+    // Gamepad
+    gamepadConnected: 'Геймпад подключён',
+    gamepadDisconnected: 'Геймпад отключён',
+
+    // Edit while prompting
+    doubleClickToEdit: 'Дважды нажмите для редактирования',
+    clickOutsideToSave: 'Нажмите снаружи для сохранения',
+
+    // Talent display
+    waitingForSync: 'Ожидание синхронизации...',
+    synced: 'Синхронизировано',
+    broadcastNotSupported: 'BroadcastChannel не поддерживается',
+
+    // Settings
+    resetToDefaults: 'Сброс',
   },
 
   fr: {
@@ -476,6 +665,69 @@ Appuyez sur le bouton Lecture pour commencer le défilement.`,
 
     importScript: 'Importer',
     exportScript: 'Exporter',
+
+    // Scroll modes
+    scrollMode: 'Mode de défilement',
+    continuous: 'Continu',
+    paging: 'Page par page',
+    voice: 'Suivi vocal',
+    pageIndicator: 'Page',
+
+    // Overlay transparency
+    overlayMode: 'Mode superposition',
+    overlayOpacity: 'Opacité',
+    overlayModeDescription: 'Fond transparent pour superposer sur les réunions',
+
+    // Side margins
+    horizontalMargin: 'Marges latérales',
+
+    // WPM display
+    wpm: 'mots/min',
+
+    // Voice scroll
+    voiceScrolling: 'Défilement vocal',
+    voiceNotSupported: 'Reconnaissance vocale non prise en charge dans ce navigateur',
+    voicePermissionDenied: 'Accès au microphone refusé',
+    listeningFor: 'Écoute de',
+    microphoneActive: 'Microphone actif',
+
+    // RTL support
+    textDirection: 'Direction du texte',
+    autoDetect: 'Détection auto',
+    leftToRight: 'Gauche à droite',
+    rightToLeft: 'Droite à gauche',
+
+    // SRT export
+    exportSRT: 'Exporter SRT',
+
+    // Theme presets
+    themePresets: 'Thème',
+    contrastRatio: 'Contraste',
+    contrastWarning: 'Faible contraste - peut être difficile à lire',
+
+    // Remote control
+    openRemote: 'Télécommande',
+    remoteControl: 'Télécommande',
+    remoteConnected: 'Télécommande connectée',
+    remoteDisconnected: 'Télécommande déconnectée',
+    openTalentDisplay: 'Affichage présentateur',
+    talentDisplay: 'Affichage présentateur',
+
+    // Gamepad
+    gamepadConnected: 'Manette connectée',
+    gamepadDisconnected: 'Manette déconnectée',
+
+    // Edit while prompting
+    doubleClickToEdit: 'Double-cliquez pour modifier',
+    clickOutsideToSave: 'Cliquez à l\'extérieur pour enregistrer',
+
+    // Talent display
+    waitingForSync: 'En attente de synchronisation...',
+    synced: 'Synchronisé',
+    broadcastNotSupported: 'BroadcastChannel non pris en charge',
+
+    // Settings
+    resetToDefaults: 'Réinitialiser',
   },
 
   es: {
@@ -589,6 +841,69 @@ Presiona el botón Reproducir para comenzar el desplazamiento.`,
 
     importScript: 'Importar',
     exportScript: 'Exportar',
+
+    // Scroll modes
+    scrollMode: 'Modo de desplazamiento',
+    continuous: 'Continuo',
+    paging: 'Por páginas',
+    voice: 'Seguimiento vocal',
+    pageIndicator: 'Página',
+
+    // Overlay transparency
+    overlayMode: 'Modo superposición',
+    overlayOpacity: 'Opacidad',
+    overlayModeDescription: 'Fondo transparente para superponer en reuniones',
+
+    // Side margins
+    horizontalMargin: 'Márgenes laterales',
+
+    // WPM display
+    wpm: 'ppm',
+
+    // Voice scroll
+    voiceScrolling: 'Desplazamiento por voz',
+    voiceNotSupported: 'Reconocimiento de voz no soportado en este navegador',
+    voicePermissionDenied: 'Permiso de micrófono denegado',
+    listeningFor: 'Escuchando',
+    microphoneActive: 'Micrófono activo',
+
+    // RTL support
+    textDirection: 'Dirección del texto',
+    autoDetect: 'Auto-detectar',
+    leftToRight: 'Izquierda a derecha',
+    rightToLeft: 'Derecha a izquierda',
+
+    // SRT export
+    exportSRT: 'Exportar SRT',
+
+    // Theme presets
+    themePresets: 'Tema',
+    contrastRatio: 'Contraste',
+    contrastWarning: 'Bajo contraste - puede ser difícil de leer',
+
+    // Remote control
+    openRemote: 'Remoto',
+    remoteControl: 'Control remoto',
+    remoteConnected: 'Remoto conectado',
+    remoteDisconnected: 'Remoto desconectado',
+    openTalentDisplay: 'Pantalla del presentador',
+    talentDisplay: 'Pantalla del presentador',
+
+    // Gamepad
+    gamepadConnected: 'Mando conectado',
+    gamepadDisconnected: 'Mando desconectado',
+
+    // Edit while prompting
+    doubleClickToEdit: 'Doble clic para editar',
+    clickOutsideToSave: 'Clic afuera para guardar',
+
+    // Talent display
+    waitingForSync: 'Esperando sincronización...',
+    synced: 'Sincronizado',
+    broadcastNotSupported: 'BroadcastChannel no soportado',
+
+    // Settings
+    resetToDefaults: 'Restablecer',
   },
 
   de: {
@@ -702,6 +1017,69 @@ Drücken Sie die Wiedergabe-Taste, um das Scrollen zu starten.`,
 
     importScript: 'Importieren',
     exportScript: 'Exportieren',
+
+    // Scroll modes
+    scrollMode: 'Scroll-Modus',
+    continuous: 'Kontinuierlich',
+    paging: 'Seitenweise',
+    voice: 'Sprachfolge',
+    pageIndicator: 'Seite',
+
+    // Overlay transparency
+    overlayMode: 'Overlay-Modus',
+    overlayOpacity: 'Deckkraft',
+    overlayModeDescription: 'Transparenter Hintergrund für Meetings-Overlay',
+
+    // Side margins
+    horizontalMargin: 'Seitenränder',
+
+    // WPM display
+    wpm: 'WpM',
+
+    // Voice scroll
+    voiceScrolling: 'Sprach-Scrollen',
+    voiceNotSupported: 'Spracherkennung in diesem Browser nicht unterstützt',
+    voicePermissionDenied: 'Mikrofonzugriff verweigert',
+    listeningFor: 'Höre auf',
+    microphoneActive: 'Mikrofon aktiv',
+
+    // RTL support
+    textDirection: 'Textrichtung',
+    autoDetect: 'Automatisch',
+    leftToRight: 'Links nach rechts',
+    rightToLeft: 'Rechts nach links',
+
+    // SRT export
+    exportSRT: 'SRT exportieren',
+
+    // Theme presets
+    themePresets: 'Design',
+    contrastRatio: 'Kontrast',
+    contrastWarning: 'Niedriger Kontrast - kann schwer lesbar sein',
+
+    // Remote control
+    openRemote: 'Fernbedienung',
+    remoteControl: 'Fernsteuerung',
+    remoteConnected: 'Fernbedienung verbunden',
+    remoteDisconnected: 'Fernbedienung getrennt',
+    openTalentDisplay: 'Sprecher-Display',
+    talentDisplay: 'Sprecher-Display',
+
+    // Gamepad
+    gamepadConnected: 'Controller verbunden',
+    gamepadDisconnected: 'Controller getrennt',
+
+    // Edit while prompting
+    doubleClickToEdit: 'Doppelklick zum Bearbeiten',
+    clickOutsideToSave: 'Klicken Sie außerhalb zum Speichern',
+
+    // Talent display
+    waitingForSync: 'Warte auf Synchronisierung...',
+    synced: 'Synchronisiert',
+    broadcastNotSupported: 'BroadcastChannel nicht unterstützt',
+
+    // Settings
+    resetToDefaults: 'Zurücksetzen',
   },
 };
 
@@ -713,6 +1091,8 @@ class I18n {
 
   constructor() {
     this.currentLocale = this.detectLocale();
+    // Set initial HTML lang attribute
+    this.updateDocumentLang();
   }
 
   private detectLocale(): Locale {
@@ -752,7 +1132,15 @@ class I18n {
       } catch {
         // localStorage not available or quota exceeded
       }
+      // Update HTML lang attribute for screen readers
+      this.updateDocumentLang();
       this.notifyListeners();
+    }
+  }
+
+  private updateDocumentLang(): void {
+    if (typeof document !== 'undefined') {
+      document.documentElement.lang = this.currentLocale;
     }
   }
 
