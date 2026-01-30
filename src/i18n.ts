@@ -88,6 +88,7 @@ export interface Translations {
   tipLineSpacing: string;
   tipScrollSpeed: string;
   tipFlipMode: string;
+  tipFlipVertical: string;
   tipPractice: string;
 
   // Footer
@@ -189,7 +190,8 @@ Press the Play button to start scrolling.`,
     tipFontSize: 'Use a larger font size (40-60px) for comfortable reading from a distance',
     tipLineSpacing: 'Increase line spacing (1.5-2x) to make it easier to track your place',
     tipScrollSpeed: 'Set scroll speed to match your natural reading pace',
-    tipFlipMode: 'Use flip mode when using a beam splitter or mirror setup',
+    tipFlipMode: 'Mirror horizontally for beam splitter setups',
+    tipFlipVertical: 'Mirror vertically for overhead monitor setups',
     tipPractice: 'Practice a few times before recording to find your ideal settings',
 
     footerText: 'Free Online Teleprompter · No account required',
@@ -285,7 +287,8 @@ Press the Play button to start scrolling.`,
     tipFontSize: 'Используйте крупный шрифт (40-60px) для комфортного чтения на расстоянии',
     tipLineSpacing: 'Увеличьте межстрочный интервал (1.5-2x), чтобы легче следить за текстом',
     tipScrollSpeed: 'Установите скорость прокрутки в соответствии с вашим темпом чтения',
-    tipFlipMode: 'Используйте режим отражения при работе с зеркалом или расщепителем луча',
+    tipFlipMode: 'Зеркало по горизонтали для расщепителя луча',
+    tipFlipVertical: 'Зеркало по вертикали для верхнего монитора',
     tipPractice: 'Попрактикуйтесь несколько раз перед записью, чтобы найти идеальные настройки',
 
     footerText: 'Бесплатный онлайн телепромптер · Без регистрации',
@@ -381,7 +384,8 @@ Appuyez sur le bouton Lecture pour commencer le défilement.`,
     tipFontSize: 'Utilisez une grande taille de police (40-60px) pour une lecture confortable à distance',
     tipLineSpacing: 'Augmentez l\'interligne (1.5-2x) pour faciliter le suivi du texte',
     tipScrollSpeed: 'Réglez la vitesse de défilement selon votre rythme de lecture naturel',
-    tipFlipMode: 'Utilisez le mode miroir avec un séparateur de faisceau ou un miroir',
+    tipFlipMode: 'Miroir horizontal pour séparateur de faisceau',
+    tipFlipVertical: 'Miroir vertical pour moniteur en hauteur',
     tipPractice: 'Entraînez-vous plusieurs fois avant l\'enregistrement pour trouver vos réglages idéaux',
 
     footerText: 'Téléprompteur en ligne gratuit · Sans inscription',
@@ -477,7 +481,8 @@ Presiona el botón Reproducir para comenzar el desplazamiento.`,
     tipFontSize: 'Usa un tamaño de fuente grande (40-60px) para lectura cómoda a distancia',
     tipLineSpacing: 'Aumenta el interlineado (1.5-2x) para facilitar el seguimiento del texto',
     tipScrollSpeed: 'Ajusta la velocidad de desplazamiento a tu ritmo natural de lectura',
-    tipFlipMode: 'Usa el modo espejo al usar un divisor de haz o espejo',
+    tipFlipMode: 'Espejo horizontal para divisor de haz',
+    tipFlipVertical: 'Espejo vertical para monitor elevado',
     tipPractice: 'Practica varias veces antes de grabar para encontrar tu configuración ideal',
 
     footerText: 'Teleprompter en línea gratuito · Sin registro',
@@ -573,7 +578,8 @@ Drücken Sie die Wiedergabe-Taste, um das Scrollen zu starten.`,
     tipFontSize: 'Verwenden Sie eine größere Schriftgröße (40-60px) für bequemes Lesen aus der Entfernung',
     tipLineSpacing: 'Erhöhen Sie den Zeilenabstand (1,5-2x), um den Text leichter zu verfolgen',
     tipScrollSpeed: 'Stellen Sie die Scrollgeschwindigkeit auf Ihr natürliches Lesetempo ein',
-    tipFlipMode: 'Verwenden Sie den Spiegelmodus bei einem Strahlteiler oder Spiegel-Setup',
+    tipFlipMode: 'Horizontal spiegeln für Strahlteiler',
+    tipFlipVertical: 'Vertikal spiegeln für Overhead-Monitor',
     tipPractice: 'Üben Sie einige Male vor der Aufnahme, um Ihre idealen Einstellungen zu finden',
 
     footerText: 'Kostenloser Online-Teleprompter · Ohne Anmeldung',

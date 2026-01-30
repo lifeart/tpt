@@ -1156,51 +1156,104 @@ class SettingsDrawer {
     colorsGroup.appendChild(colorsRow);
     panel.appendChild(colorsGroup);
 
-    // Flip mode
-    const flipGroup = this.createSettingsGroup();
+    // Flip controls - Apple-style with full a11y
+    const flipGroup = document.createElement("div");
+    flipGroup.className = "flip-controls-group";
+    flipGroup.setAttribute("role", "group");
+    flipGroup.setAttribute("aria-label", i18n.t('flipScreen'));
+
+    // Horizontal flip row
     const flipRow = document.createElement("div");
-    flipRow.className = "settings-row";
-    flipRow.style.justifyContent = "space-between";
+    flipRow.className = "flip-control-row";
 
-    const flipLabel = document.createElement("label");
-    flipLabel.className = "settings-label";
-    flipLabel.style.marginBottom = "0";
-    flipLabel.textContent = i18n.t('flipScreen');
+    const flipLabelContainer = document.createElement("div");
+    flipLabelContainer.className = "flip-control-label";
 
-    const flipBtn = document.createElement("button");
-    flipBtn.className = "toolbar-btn toolbar-btn-edit";
-    flipBtn.textContent = this.state.isFlipped ? i18n.t('unflip') : i18n.t('flip');
-    flipBtn.addEventListener("click", () => {
-      this.state.isFlipped = !this.state.isFlipped;
-      flipBtn.textContent = this.state.isFlipped ? i18n.t('unflip') : i18n.t('flip');
+    const flipTitleId = "flip-horizontal-title";
+    const flipDescId = "flip-horizontal-desc";
+
+    const flipTitle = document.createElement("span");
+    flipTitle.className = "flip-control-title";
+    flipTitle.id = flipTitleId;
+    flipTitle.textContent = i18n.t('flipScreen');
+
+    const flipSubtitle = document.createElement("span");
+    flipSubtitle.className = "flip-control-subtitle";
+    flipSubtitle.id = flipDescId;
+    flipSubtitle.textContent = i18n.t('tipFlipMode');
+
+    flipLabelContainer.appendChild(flipTitle);
+    flipLabelContainer.appendChild(flipSubtitle);
+
+    const flipToggle = document.createElement("label");
+    flipToggle.className = "toggle-switch";
+    const flipInput = document.createElement("input");
+    flipInput.type = "checkbox";
+    flipInput.checked = this.state.isFlipped;
+    flipInput.setAttribute("role", "switch");
+    flipInput.setAttribute("aria-checked", String(this.state.isFlipped));
+    flipInput.setAttribute("aria-labelledby", flipTitleId);
+    flipInput.setAttribute("aria-describedby", flipDescId);
+    flipInput.addEventListener("change", () => {
+      this.state.isFlipped = flipInput.checked;
+      flipInput.setAttribute("aria-checked", String(flipInput.checked));
       this.onStateChange();
     });
+    const flipSlider = document.createElement("span");
+    flipSlider.className = "toggle-slider";
+    flipSlider.setAttribute("aria-hidden", "true");
+    flipToggle.appendChild(flipInput);
+    flipToggle.appendChild(flipSlider);
 
-    flipRow.appendChild(flipLabel);
-    flipRow.appendChild(flipBtn);
+    flipRow.appendChild(flipLabelContainer);
+    flipRow.appendChild(flipToggle);
     flipGroup.appendChild(flipRow);
 
     // Vertical flip row
     const flipVerticalRow = document.createElement("div");
-    flipVerticalRow.className = "settings-row";
-    flipVerticalRow.style.justifyContent = "space-between";
+    flipVerticalRow.className = "flip-control-row";
 
-    const flipVerticalLabel = document.createElement("label");
-    flipVerticalLabel.className = "settings-label";
-    flipVerticalLabel.style.marginBottom = "0";
-    flipVerticalLabel.textContent = i18n.t('flipVertical');
+    const flipVerticalLabelContainer = document.createElement("div");
+    flipVerticalLabelContainer.className = "flip-control-label";
 
-    const flipVerticalBtn = document.createElement("button");
-    flipVerticalBtn.className = "toolbar-btn toolbar-btn-edit";
-    flipVerticalBtn.textContent = this.state.isFlippedVertical ? i18n.t('unflip') : i18n.t('flip');
-    flipVerticalBtn.addEventListener("click", () => {
-      this.state.isFlippedVertical = !this.state.isFlippedVertical;
-      flipVerticalBtn.textContent = this.state.isFlippedVertical ? i18n.t('unflip') : i18n.t('flip');
+    const flipVerticalTitleId = "flip-vertical-title";
+    const flipVerticalDescId = "flip-vertical-desc";
+
+    const flipVerticalTitle = document.createElement("span");
+    flipVerticalTitle.className = "flip-control-title";
+    flipVerticalTitle.id = flipVerticalTitleId;
+    flipVerticalTitle.textContent = i18n.t('flipVertical');
+
+    const flipVerticalSubtitle = document.createElement("span");
+    flipVerticalSubtitle.className = "flip-control-subtitle";
+    flipVerticalSubtitle.id = flipVerticalDescId;
+    flipVerticalSubtitle.textContent = i18n.t('tipFlipVertical');
+
+    flipVerticalLabelContainer.appendChild(flipVerticalTitle);
+    flipVerticalLabelContainer.appendChild(flipVerticalSubtitle);
+
+    const flipVerticalToggle = document.createElement("label");
+    flipVerticalToggle.className = "toggle-switch";
+    const flipVerticalInput = document.createElement("input");
+    flipVerticalInput.type = "checkbox";
+    flipVerticalInput.checked = this.state.isFlippedVertical;
+    flipVerticalInput.setAttribute("role", "switch");
+    flipVerticalInput.setAttribute("aria-checked", String(this.state.isFlippedVertical));
+    flipVerticalInput.setAttribute("aria-labelledby", flipVerticalTitleId);
+    flipVerticalInput.setAttribute("aria-describedby", flipVerticalDescId);
+    flipVerticalInput.addEventListener("change", () => {
+      this.state.isFlippedVertical = flipVerticalInput.checked;
+      flipVerticalInput.setAttribute("aria-checked", String(flipVerticalInput.checked));
       this.onStateChange();
     });
+    const flipVerticalSlider = document.createElement("span");
+    flipVerticalSlider.className = "toggle-slider";
+    flipVerticalSlider.setAttribute("aria-hidden", "true");
+    flipVerticalToggle.appendChild(flipVerticalInput);
+    flipVerticalToggle.appendChild(flipVerticalSlider);
 
-    flipVerticalRow.appendChild(flipVerticalLabel);
-    flipVerticalRow.appendChild(flipVerticalBtn);
+    flipVerticalRow.appendChild(flipVerticalLabelContainer);
+    flipVerticalRow.appendChild(flipVerticalToggle);
     flipGroup.appendChild(flipVerticalRow);
 
     panel.appendChild(flipGroup);
