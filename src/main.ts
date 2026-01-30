@@ -404,8 +404,7 @@ class TeleprompterDisplay {
     // Check if we've reached the end
     const totalHeight = this.telepromptTextInner.scrollHeight;
     const containerHeight = this.telepromptText.clientHeight;
-    const endThreshold = 5; // pixels from end
-    if (Math.abs(this.currentTranslateY) + containerHeight >= totalHeight - endThreshold && !this.state.scriptEnded) {
+    if (Math.abs(this.currentTranslateY) + containerHeight >= totalHeight - CONFIG.END_THRESHOLD && !this.state.scriptEnded) {
       this.toggleScrolling(); // Auto-pause when reaching the end
       this.state.scriptEnded = true; // Set flag when script ends
       if (document.fullscreenElement && document.exitFullscreen) {
@@ -723,7 +722,7 @@ class TeleprompterDisplay {
 
 // Floating Toolbar Component
 class FloatingToolbar {
-  private element: HTMLDivElement;
+  private element: HTMLElement;
   private state: TeleprompterState;
   private editBtn: HTMLButtonElement;
   private playPauseBtn: HTMLButtonElement;
@@ -758,8 +757,10 @@ class FloatingToolbar {
     this.onHelpClick = callbacks.onHelpClick;
 
     // Create toolbar element
-    this.element = document.createElement("div");
+    this.element = document.createElement("nav");
     this.element.className = "floating-toolbar";
+    this.element.setAttribute("role", "toolbar");
+    this.element.setAttribute("aria-label", "Main toolbar");
 
     // Create buttons
     this.editBtn = this.createButton("toolbar-btn toolbar-btn-edit toolbar-btn-icon", editIcon, i18n.t('edit'));
@@ -769,20 +770,26 @@ class FloatingToolbar {
     // Speed control
     const speedControl = document.createElement("div");
     speedControl.className = "speed-control";
+    speedControl.setAttribute("role", "group");
+    speedControl.setAttribute("aria-label", "Speed control");
 
     this.speedMinusBtn = document.createElement("button");
     this.speedMinusBtn.className = "speed-btn";
     this.speedMinusBtn.textContent = "−";
     this.speedMinusBtn.setAttribute("aria-label", i18n.t('decreaseSpeed'));
+    this.speedMinusBtn.type = "button";
 
     this.speedValue = document.createElement("span");
     this.speedValue.className = "speed-value";
     this.speedValue.textContent = `${this.state.scrollSpeed}x`;
+    this.speedValue.setAttribute("aria-live", "polite");
+    this.speedValue.setAttribute("aria-atomic", "true");
 
     this.speedPlusBtn = document.createElement("button");
     this.speedPlusBtn.className = "speed-btn";
     this.speedPlusBtn.textContent = "+";
     this.speedPlusBtn.setAttribute("aria-label", i18n.t('increaseSpeed'));
+    this.speedPlusBtn.type = "button";
 
     speedControl.appendChild(this.speedMinusBtn);
     speedControl.appendChild(this.speedValue);
@@ -813,6 +820,7 @@ class FloatingToolbar {
   private createButton(className: string, iconHtml: string, ariaLabel: string): HTMLButtonElement {
     const btn = document.createElement("button");
     btn.className = className;
+    btn.type = "button";
     btn.innerHTML = iconHtml;
     btn.setAttribute("aria-label", ariaLabel);
     return btn;
@@ -972,6 +980,7 @@ class SettingsDrawer {
   private activeTab: string = "display";
   private i18nUnsubscribe: (() => void) | null = null;
   private settingsChangedHandler: (() => void) | null = null;
+  private escKeyHandler: ((e: KeyboardEvent) => void) | null = null;
 
   // Input references for updating labels
   private fontSizeInput: HTMLInputElement | null = null;
@@ -998,11 +1007,15 @@ class SettingsDrawer {
     // Create backdrop
     this.backdrop = document.createElement("div");
     this.backdrop.className = "settings-drawer-backdrop";
+    this.backdrop.setAttribute("aria-hidden", "true");
     this.backdrop.addEventListener("click", () => this.close());
 
     // Create drawer
     this.drawer = document.createElement("div");
     this.drawer.className = "settings-drawer";
+    this.drawer.setAttribute("role", "dialog");
+    this.drawer.setAttribute("aria-modal", "true");
+    this.drawer.setAttribute("aria-label", i18n.t('settings'));
 
     this.render();
 
@@ -1030,6 +1043,8 @@ class SettingsDrawer {
     // Tab navigation
     const tabs = document.createElement("div");
     tabs.className = "drawer-tabs";
+    tabs.setAttribute("role", "tablist");
+    tabs.setAttribute("aria-label", "Settings tabs");
 
     const tabNames = [
       { id: "display", label: i18n.t('display') },
@@ -1040,8 +1055,13 @@ class SettingsDrawer {
     this.tabButtons = tabNames.map(({ id, label }) => {
       const btn = document.createElement("button");
       btn.className = `drawer-tab${id === this.activeTab ? " active" : ""}`;
+      btn.type = "button";
       btn.textContent = label;
       btn.dataset.tab = id;
+      btn.setAttribute("role", "tab");
+      btn.setAttribute("aria-selected", String(id === this.activeTab));
+      btn.setAttribute("aria-controls", `panel-${id}`);
+      btn.id = `tab-${id}`;
       btn.addEventListener("click", () => this.switchTab(id));
       tabs.appendChild(btn);
       return btn;
@@ -1073,11 +1093,12 @@ class SettingsDrawer {
     // Close button
     this.closeBtn = document.createElement("button");
     this.closeBtn.className = "drawer-close-btn";
+    this.closeBtn.type = "button";
     this.closeBtn.textContent = i18n.t('closeDrawer');
     this.closeBtn.addEventListener("click", () => this.close());
 
     const closeContainer = document.createElement("div");
-    closeContainer.style.padding = "0 16px 16px";
+    closeContainer.style.padding = "12px 16px 16px";
     closeContainer.appendChild(this.closeBtn);
     this.drawer.appendChild(closeContainer);
   }
@@ -1086,6 +1107,10 @@ class SettingsDrawer {
     const panel = document.createElement("div");
     panel.className = `drawer-tab-panel${id === this.activeTab ? " active" : ""}`;
     panel.dataset.panel = id;
+    panel.id = `panel-${id}`;
+    panel.setAttribute("role", "tabpanel");
+    panel.setAttribute("aria-labelledby", `tab-${id}`);
+    panel.tabIndex = 0;
     return panel;
   }
 
@@ -1127,27 +1152,41 @@ class SettingsDrawer {
     // Font color
     const fontColorItem = document.createElement("div");
     fontColorItem.className = "settings-color-item";
+    const fontColorLabel = document.createElement("label");
+    fontColorLabel.className = "sr-only";
+    fontColorLabel.textContent = i18n.t('fontColor');
     const fontColorInput = document.createElement("input");
     fontColorInput.type = "color";
     fontColorInput.className = "settings-color-input";
     fontColorInput.value = this.state.fontColor;
+    fontColorInput.id = "font-color-input";
+    fontColorLabel.htmlFor = "font-color-input";
+    fontColorInput.setAttribute("aria-label", i18n.t('fontColor'));
     fontColorInput.addEventListener("input", () => {
       this.state.fontColor = fontColorInput.value;
       this.onStateChange();
     });
+    fontColorItem.appendChild(fontColorLabel);
     fontColorItem.appendChild(fontColorInput);
 
     // Background color
     const bgColorItem = document.createElement("div");
     bgColorItem.className = "settings-color-item";
+    const bgColorLabel = document.createElement("label");
+    bgColorLabel.className = "sr-only";
+    bgColorLabel.textContent = i18n.t('backgroundColor');
     const bgColorInput = document.createElement("input");
     bgColorInput.type = "color";
     bgColorInput.className = "settings-color-input";
     bgColorInput.value = this.state.backgroundColor;
+    bgColorInput.id = "bg-color-input";
+    bgColorLabel.htmlFor = "bg-color-input";
+    bgColorInput.setAttribute("aria-label", i18n.t('backgroundColor'));
     bgColorInput.addEventListener("input", () => {
       this.state.backgroundColor = bgColorInput.value;
       this.onStateChange();
     });
+    bgColorItem.appendChild(bgColorLabel);
     bgColorItem.appendChild(bgColorInput);
 
     colorsRow.appendChild(fontColorItem);
@@ -1295,8 +1334,12 @@ class SettingsDrawer {
       this.onStateChange();
     });
 
+    const fontFamilyRow = document.createElement("div");
+    fontFamilyRow.className = "settings-row";
+    fontFamilyRow.appendChild(fontFamilySelect);
+
     fontFamilyGroup.appendChild(fontFamilyLabel);
-    fontFamilyGroup.appendChild(fontFamilySelect);
+    fontFamilyGroup.appendChild(fontFamilyRow);
     panel.appendChild(fontFamilyGroup);
 
     // Line Spacing
@@ -1317,8 +1360,12 @@ class SettingsDrawer {
       this.onStateChange();
     });
 
+    const lineSpacingRow = document.createElement("div");
+    lineSpacingRow.className = "settings-row";
+    lineSpacingRow.appendChild(this.lineSpacingInput);
+
     lineSpacingGroup.appendChild(this.lineSpacingLabel);
-    lineSpacingGroup.appendChild(this.lineSpacingInput);
+    lineSpacingGroup.appendChild(lineSpacingRow);
     panel.appendChild(lineSpacingGroup);
 
     // Letter Spacing
@@ -1338,8 +1385,12 @@ class SettingsDrawer {
       this.onStateChange();
     });
 
+    const letterSpacingRow = document.createElement("div");
+    letterSpacingRow.className = "settings-row";
+    letterSpacingRow.appendChild(this.letterSpacingInput);
+
     letterSpacingGroup.appendChild(this.letterSpacingLabel);
-    letterSpacingGroup.appendChild(this.letterSpacingInput);
+    letterSpacingGroup.appendChild(letterSpacingRow);
     panel.appendChild(letterSpacingGroup);
 
     // Max Words Per Line
@@ -1355,13 +1406,18 @@ class SettingsDrawer {
     this.maxWordsPerLineInput.value = this.state.maxWordsPerLine.toString();
     this.maxWordsPerLineInput.addEventListener("input", () => {
       const value = this.maxWordsPerLineInput!.valueAsNumber;
-      this.state.maxWordsPerLine = Number.isNaN(value) || value < 0 ? 0 : Math.floor(value);
+      // Clamp value between 0 and 50 (reasonable maximum for words per line)
+      this.state.maxWordsPerLine = Number.isNaN(value) || value < 0 ? 0 : Math.min(Math.floor(value), 50);
       this.maxWordsPerLineLabel!.textContent = formatLabel('maxWordsPerLine', this.state.maxWordsPerLine);
       this.onStateChange();
     });
 
+    const maxWordsRow = document.createElement("div");
+    maxWordsRow.className = "settings-row";
+    maxWordsRow.appendChild(this.maxWordsPerLineInput);
+
     maxWordsGroup.appendChild(this.maxWordsPerLineLabel);
-    maxWordsGroup.appendChild(this.maxWordsPerLineInput);
+    maxWordsGroup.appendChild(maxWordsRow);
     panel.appendChild(maxWordsGroup);
 
     // Scroll Speed
@@ -1384,8 +1440,12 @@ class SettingsDrawer {
       document.dispatchEvent(new CustomEvent("speed-changed"));
     });
 
+    const scrollSpeedRow = document.createElement("div");
+    scrollSpeedRow.className = "settings-row";
+    scrollSpeedRow.appendChild(this.scrollSpeedInput);
+
     scrollSpeedGroup.appendChild(this.scrollSpeedLabel);
-    scrollSpeedGroup.appendChild(this.scrollSpeedInput);
+    scrollSpeedGroup.appendChild(scrollSpeedRow);
     panel.appendChild(scrollSpeedGroup);
   }
 
@@ -1413,14 +1473,19 @@ class SettingsDrawer {
       i18n.setLocale(languageSelect.value as Locale);
     });
 
+    const languageRow = document.createElement("div");
+    languageRow.className = "settings-row";
+    languageRow.appendChild(languageSelect);
+
     languageGroup.appendChild(languageLabel);
-    languageGroup.appendChild(languageSelect);
+    languageGroup.appendChild(languageRow);
     panel.appendChild(languageGroup);
 
     // Back to Top button
     const backToTopGroup = this.createSettingsGroup();
     const backToTopBtn = document.createElement("button");
     backToTopBtn.className = "drawer-close-btn";
+    backToTopBtn.type = "button";
     backToTopBtn.style.marginTop = "0";
     backToTopBtn.textContent = i18n.t('backToTop');
     backToTopBtn.addEventListener("click", () => {
@@ -1442,7 +1507,9 @@ class SettingsDrawer {
 
     // Update tab buttons
     this.tabButtons.forEach((btn) => {
-      btn.classList.toggle("active", btn.dataset.tab === tabId);
+      const isActive = btn.dataset.tab === tabId;
+      btn.classList.toggle("active", isActive);
+      btn.setAttribute("aria-selected", String(isActive));
     });
 
     // Update panels
@@ -1507,6 +1574,15 @@ class SettingsDrawer {
     this.isOpen = true;
     this.backdrop.classList.add("open");
     this.drawer.classList.add("open");
+
+    // Setup ESC key handler
+    this.escKeyHandler = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && this.isOpen) {
+        this.close();
+      }
+    };
+    document.addEventListener("keydown", this.escKeyHandler);
+
     // Notify that drawer is open (for teleprompter container resizing)
     document.dispatchEvent(new CustomEvent("drawer-opened"));
   }
@@ -1515,6 +1591,13 @@ class SettingsDrawer {
     this.isOpen = false;
     this.backdrop.classList.remove("open");
     this.drawer.classList.remove("open");
+
+    // Remove ESC key handler
+    if (this.escKeyHandler) {
+      document.removeEventListener("keydown", this.escKeyHandler);
+      this.escKeyHandler = null;
+    }
+
     document.dispatchEvent(new CustomEvent("drawer-closed"));
   }
 
@@ -1544,6 +1627,10 @@ class SettingsDrawer {
       document.removeEventListener("settings-changed", this.settingsChangedHandler);
       this.settingsChangedHandler = null;
     }
+    if (this.escKeyHandler) {
+      document.removeEventListener("keydown", this.escKeyHandler);
+      this.escKeyHandler = null;
+    }
     if (this.backdrop && this.backdrop.parentNode) {
       this.backdrop.parentNode.removeChild(this.backdrop);
     }
@@ -1564,7 +1651,7 @@ class ScriptEditor {
   private escKeyHandler: ((e: KeyboardEvent) => void) | null = null;
   private i18nUnsubscribe: (() => void) | null = null;
   private closeBtn: HTMLButtonElement;
-  private titleSpan: HTMLSpanElement;
+  private titleSpan: HTMLHeadingElement;
   private saveBtn: HTMLButtonElement;
 
   constructor(
@@ -1578,25 +1665,32 @@ class ScriptEditor {
     // Create overlay
     this.overlay = document.createElement("div");
     this.overlay.className = "script-editor-overlay";
+    this.overlay.setAttribute("role", "dialog");
+    this.overlay.setAttribute("aria-modal", "true");
+    this.overlay.setAttribute("aria-labelledby", "editor-title");
 
     // Header
-    const header = document.createElement("div");
+    const header = document.createElement("header");
     header.className = "editor-header";
 
     this.closeBtn = document.createElement("button");
     this.closeBtn.className = "editor-close-btn";
+    this.closeBtn.type = "button";
+    this.closeBtn.setAttribute("aria-label", i18n.t('close'));
     this.closeBtn.innerHTML = closeIcon;
     const closeText = document.createElement("span");
     closeText.textContent = i18n.t('close');
     this.closeBtn.appendChild(closeText);
     this.closeBtn.addEventListener("click", () => this.close());
 
-    this.titleSpan = document.createElement("span");
+    this.titleSpan = document.createElement("h1");
     this.titleSpan.className = "editor-title";
+    this.titleSpan.id = "editor-title";
     this.titleSpan.textContent = i18n.t('editScript');
 
     this.saveBtn = document.createElement("button");
     this.saveBtn.className = "editor-save-btn";
+    this.saveBtn.type = "button";
     this.saveBtn.textContent = i18n.t('saveAndClose');
     this.saveBtn.addEventListener("click", () => this.saveAndClose());
 
@@ -1703,7 +1797,9 @@ class ScriptEditor {
 
   private saveAndClose() {
     this.save();
-    this.isOpen = false; // Prevent close() from saving again
+    // Set isOpen to false before close() to prevent double-save,
+    // since close() calls save() only when isOpen is true
+    this.isOpen = false;
     this.close();
   }
 
@@ -1962,7 +2058,7 @@ class HelpModal {
 // Main Teleprompter App (New UI with Floating Toolbar + Drawer)
 class TeleprompterApp {
   private appElement: HTMLDivElement;
-  private mainContainer: HTMLDivElement | null = null;
+  private mainContainer: HTMLElement | null = null;
   private state: TeleprompterState;
   private display: TeleprompterDisplay | null = null;
   private toolbar: FloatingToolbar | null = null;
@@ -1993,9 +2089,10 @@ class TeleprompterApp {
     this.appElement.replaceChildren();
 
     // Create main container with data attribute for reliable querying
-    this.mainContainer = document.createElement("div");
+    this.mainContainer = document.createElement("main");
     this.mainContainer.className = "flex flex-col h-screen";
     this.mainContainer.dataset.teleprompterMain = "true";
+    this.mainContainer.setAttribute("role", "main");
 
     this.appElement.appendChild(this.mainContainer);
   }
@@ -2026,6 +2123,8 @@ class TeleprompterApp {
         this.display.updateTelepromptText();
         this.display.updateStyles();
       }
+      // Reset scroll position to top when text changes
+      document.dispatchEvent(new CustomEvent("back-to-top"));
     });
 
     // Initialize help modal

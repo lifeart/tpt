@@ -1,5 +1,18 @@
 @import "tailwindcss";
 
+/* Screen reader only - for accessible labels */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 /* Base styles - Apple San Francisco font stack */
 :root {
   font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, sans-serif;
@@ -15,10 +28,20 @@
   --drawer-max-height: 50vh;
   --touch-target-min: 48px;
 
+  /* Border radius - consistent scale */
+  --radius-xs: 6px;
+  --radius-sm: 8px;
+  --radius-md: 10px;
+  --radius-lg: 12px;
+  --radius-xl: 14px;
+  --radius-pill: 22px;
+  --radius-round: 50%;
+
   /* Animation */
   --transition-fast: 150ms ease-out;
   --transition-normal: 250ms ease-out;
   --transition-slow: 350ms ease-out;
+  --transition-press: 100ms ease;
 
   /* Safe areas */
   --safe-area-bottom: env(safe-area-inset-bottom, 0px);
@@ -27,6 +50,8 @@
   --safe-area-top: env(safe-area-inset-top, 0px);
 
   /* Apple-style colors (iOS dark mode) */
+  --apple-bg-primary: #000000;
+  --apple-bg-secondary: #1c1c1e;
   --apple-toggle-off: #39393d;
   --apple-toggle-off-hover: #48484a;
   --apple-toggle-on: #34c759;
@@ -41,10 +66,19 @@
   --apple-grouped-bg: #2c2c2e;
   --apple-elevated-bg: #3a3a3c;
   --apple-system-red: #ff453a;
+  --apple-system-red-hover: #ff6961;
   --apple-system-orange: #ff9f0a;
+  --apple-system-orange-hover: #ffb340;
   --apple-system-blue: #0a84ff;
+  --apple-system-yellow: #ffd60a;
   --apple-toolbar-bg: rgba(30, 30, 30, 0.85);
   --apple-material-thick: rgba(50, 50, 52, 0.95);
+
+  /* Font sizes - consistent scale */
+  --font-xs: 13px;
+  --font-sm: 15px;
+  --font-md: 17px;
+  --font-lg: 20px;
 }
 
 body {
@@ -52,7 +86,7 @@ body {
   display: flex;
   min-width: 320px;
   min-height: 100vh;
-  background-color: #000;
+  background-color: var(--apple-bg-primary);
   color: var(--apple-text-primary);
 }
 
@@ -66,33 +100,34 @@ body {
 .teleprompter-container {
   position: relative;
   height: calc(100vh - var(--toolbar-height) - var(--safe-area-bottom));
-  overflow-y: auto;
-  background-color: #000;
+  overflow: hidden; /* Container doesn't scroll - text element does */
+  background-color: var(--apple-bg-primary);
   display: flex;
   flex-direction: column;
   justify-content: flex-start;
   align-items: center;
-  padding: 2rem 0;
-  padding-bottom: calc(2rem + var(--toolbar-height) + var(--safe-area-bottom));
   will-change: transform; /* Hardware acceleration hint */
-  -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
 }
 
 /* Text display */
 #teleprompt-text {
   width: 100%;
-  height: 100%;
+  flex: 1;
   overflow-y: auto;
+  overflow-x: hidden;
   scroll-behavior: smooth;
   padding: 2rem;
+  padding-bottom: calc(2rem + var(--toolbar-height) + var(--safe-area-bottom));
   box-sizing: border-box;
   will-change: transform; /* Hardware acceleration hint */
   transform: translateZ(0); /* Force hardware acceleration */
+  -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
 }
 
 /* Inner text wrapper for transforms */
 .teleprompt-text-inner {
   will-change: transform;
+  padding: 0 3rem; /* Space for active line indicators */
 }
 
 /* Active line highlight - optimized selector */
@@ -113,7 +148,7 @@ body {
   position: absolute;
   top: 50%;
   transform: translateY(-50%);
-  color: yellow;
+  color: var(--apple-system-yellow);
   font-size: 1.5em;
   will-change: transform;
 }
@@ -137,7 +172,7 @@ body {
   background: rgba(0, 0, 0, 0.85);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
-  z-index: 100;
+  z-index: 50;
   font-size: 120px;
   font-weight: 200;
   color: var(--apple-text-primary);
@@ -196,8 +231,11 @@ button {
   justify-content: center;
   z-index: 1000;
   padding: 1rem;
+  padding-top: calc(1rem + var(--safe-area-top));
+  padding-bottom: calc(1rem + var(--safe-area-bottom));
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
+  overflow-y: auto;
 }
 
 .help-modal-overlay.visible {
@@ -208,11 +246,13 @@ button {
   background: var(--apple-material-thick);
   backdrop-filter: saturate(180%) blur(20px);
   -webkit-backdrop-filter: saturate(180%) blur(20px);
-  border-radius: 14px;
+  border-radius: var(--radius-xl);
   max-width: 560px;
   max-height: 80vh;
   width: 100%;
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
   box-shadow: 0 25px 60px -12px rgba(0, 0, 0, 0.5);
   animation: appleModalIn 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
@@ -234,11 +274,12 @@ button {
   justify-content: space-between;
   padding: 16px 20px;
   border-bottom: 0.5px solid var(--apple-separator);
+  flex-shrink: 0;
 }
 
 .help-modal-header h2 {
   margin: 0;
-  font-size: 17px;
+  font-size: var(--font-md);
   font-weight: 600;
   color: var(--apple-text-primary);
   letter-spacing: -0.4px;
@@ -250,7 +291,7 @@ button {
   color: var(--apple-text-secondary);
   width: 30px;
   height: 30px;
-  border-radius: 15px;
+  border-radius: var(--radius-round);
   font-size: 18px;
   cursor: pointer;
   display: flex;
@@ -272,7 +313,8 @@ button {
 .help-modal-content {
   padding: 20px;
   overflow-y: auto;
-  max-height: calc(80vh - 120px);
+  flex: 1;
+  min-height: 0; /* Allow flex shrinking */
   color: var(--apple-text-primary);
 }
 
@@ -285,7 +327,7 @@ button {
 }
 
 .help-section h3 {
-  font-size: 13px;
+  font-size: var(--font-xs);
   font-weight: 600;
   color: var(--apple-text-secondary);
   text-transform: uppercase;
@@ -295,7 +337,7 @@ button {
 
 .shortcut-list {
   background: var(--apple-grouped-bg);
-  border-radius: 10px;
+  border-radius: var(--radius-md);
   overflow: hidden;
 }
 
@@ -319,9 +361,9 @@ button {
   background: var(--apple-fill-tertiary);
   color: var(--apple-text-primary);
   padding: 4px 8px;
-  border-radius: 6px;
+  border-radius: var(--radius-xs);
   font-family: -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
-  font-size: 13px;
+  font-size: var(--font-xs);
   font-weight: 500;
   border: none;
   box-shadow: 0 1px 0 rgba(0, 0, 0, 0.3);
@@ -329,7 +371,7 @@ button {
 
 .shortcut-desc {
   color: var(--apple-text-secondary);
-  font-size: 15px;
+  font-size: var(--font-sm);
   letter-spacing: -0.2px;
 }
 
@@ -338,7 +380,7 @@ button {
   padding: 0;
   margin: 0;
   background: var(--apple-grouped-bg);
-  border-radius: 10px;
+  border-radius: var(--radius-md);
   overflow: hidden;
 }
 
@@ -346,7 +388,7 @@ button {
   padding: 12px 16px;
   padding-left: 40px;
   position: relative;
-  font-size: 15px;
+  font-size: var(--font-sm);
   letter-spacing: -0.2px;
 }
 
@@ -369,8 +411,9 @@ button {
   padding: 16px 20px;
   border-top: 0.5px solid var(--apple-separator);
   text-align: center;
-  font-size: 13px;
+  font-size: var(--font-xs);
   color: var(--apple-text-secondary);
+  flex-shrink: 0;
 }
 
 .help-footer a {
@@ -380,32 +423,6 @@ button {
 
 .help-footer a:hover {
   text-decoration: underline;
-}
-
-/* Legacy help button in controls (deprecated) */
-.help-btn {
-  width: 28px;
-  height: 28px;
-  border-radius: 14px;
-  background: var(--apple-fill-secondary);
-  border: none;
-  color: var(--apple-text-primary);
-  font-size: 15px;
-  font-weight: 600;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: background var(--transition-fast);
-}
-
-.help-btn:hover {
-  background: var(--apple-fill-primary);
-}
-
-.help-btn:focus-visible {
-  outline: 2px solid var(--apple-system-blue);
-  outline-offset: 2px;
 }
 
 /* ============================================
@@ -446,13 +463,13 @@ button {
   min-width: 44px;
   min-height: 44px;
   padding: 10px 20px;
-  border-radius: 22px;
+  border-radius: var(--radius-pill);
   border: none;
-  font-size: 15px;
+  font-size: var(--font-sm);
   font-weight: 500;
   letter-spacing: -0.2px;
   cursor: pointer;
-  transition: background var(--transition-fast), transform 0.1s ease, opacity var(--transition-fast);
+  transition: background var(--transition-fast), transform var(--transition-press), opacity var(--transition-fast);
   -webkit-tap-highlight-color: transparent;
   user-select: none;
 }
@@ -470,7 +487,7 @@ button {
 .toolbar-btn-icon {
   padding: 10px;
   min-width: 44px;
-  border-radius: 22px;
+  border-radius: var(--radius-pill);
 }
 
 .toolbar-btn-icon svg {
@@ -497,10 +514,10 @@ button {
 /* Play/Pause button - Primary action */
 .toolbar-btn-play {
   background: var(--apple-toggle-on);
-  color: white;
+  color: var(--apple-text-primary);
   padding: 10px 28px;
   min-width: 100px;
-  font-size: 17px;
+  font-size: var(--font-md);
   font-weight: 600;
   letter-spacing: -0.4px;
   box-shadow: 0 2px 8px rgba(52, 199, 89, 0.3);
@@ -516,7 +533,7 @@ button {
 }
 
 .toolbar-btn-play.playing:hover {
-  background: #ff6961;
+  background: var(--apple-system-red-hover);
 }
 
 .toolbar-btn-play.countdown {
@@ -525,7 +542,7 @@ button {
 }
 
 .toolbar-btn-play.countdown:hover {
-  background: #ffb340;
+  background: var(--apple-system-orange-hover);
 }
 
 /* Speed control - Apple stepper style */
@@ -534,7 +551,7 @@ button {
   align-items: center;
   gap: 0;
   background: var(--apple-fill-secondary);
-  border-radius: 22px;
+  border-radius: var(--radius-pill);
   padding: 4px;
   height: 44px;
 }
@@ -545,14 +562,14 @@ button {
   justify-content: center;
   width: 36px;
   height: 36px;
-  border-radius: 18px;
+  border-radius: var(--radius-round);
   border: none;
   background: transparent;
   color: var(--apple-system-blue);
-  font-size: 20px;
+  font-size: var(--font-lg);
   font-weight: 500;
   cursor: pointer;
-  transition: background var(--transition-fast), transform 0.1s ease;
+  transition: background var(--transition-fast), transform var(--transition-press);
 }
 
 .speed-control .speed-btn:hover {
@@ -572,7 +589,7 @@ button {
 .speed-control .speed-value {
   min-width: 54px;
   text-align: center;
-  font-size: 15px;
+  font-size: var(--font-sm);
   font-weight: 600;
   font-variant-numeric: tabular-nums;
   color: var(--apple-text-primary);
@@ -608,8 +625,8 @@ button {
   background: var(--apple-material-thick);
   backdrop-filter: saturate(180%) blur(20px);
   -webkit-backdrop-filter: saturate(180%) blur(20px);
-  border-top-left-radius: 14px;
-  border-top-right-radius: 14px;
+  border-top-left-radius: var(--radius-xl);
+  border-top-right-radius: var(--radius-xl);
   z-index: 201;
   transform: translateY(100%);
   transition: transform var(--transition-normal);
@@ -629,6 +646,7 @@ button {
   justify-content: center;
   padding: 6px 10px;
   cursor: grab;
+  flex-shrink: 0;
 }
 
 .drawer-handle::before {
@@ -653,7 +671,7 @@ button {
   margin: 0 16px 8px;
   padding: 2px;
   background: var(--apple-fill-tertiary);
-  border-radius: 9px;
+  border-radius: var(--radius-sm);
 }
 
 .drawer-tab {
@@ -662,12 +680,12 @@ button {
   border: none;
   background: none;
   color: var(--apple-text-primary);
-  font-size: 13px;
+  font-size: var(--font-xs);
   font-weight: 500;
   letter-spacing: -0.08px;
   cursor: pointer;
   position: relative;
-  border-radius: 7px;
+  border-radius: var(--radius-xs);
   transition: background var(--transition-fast), color var(--transition-fast);
 }
 
@@ -708,7 +726,7 @@ button {
 /* Settings control groups - Apple grouped style */
 .settings-group {
   background: var(--apple-elevated-bg);
-  border-radius: 12px;
+  border-radius: var(--radius-lg);
   margin-bottom: 16px;
   overflow: hidden;
 }
@@ -719,7 +737,7 @@ button {
 
 .settings-label {
   display: block;
-  font-size: 13px;
+  font-size: var(--font-xs);
   font-weight: 500;
   color: var(--apple-text-secondary);
   letter-spacing: 0.02em;
@@ -744,10 +762,15 @@ button {
   accent-color: var(--apple-system-blue);
 }
 
+/* Selects and number inputs inside settings-row */
+.settings-row .settings-select {
+  flex: 1;
+}
+
 .settings-value {
   min-width: 54px;
   text-align: right;
-  font-size: 15px;
+  font-size: var(--font-sm);
   font-weight: 400;
   font-variant-numeric: tabular-nums;
   color: var(--apple-text-secondary);
@@ -767,7 +790,7 @@ button {
 .settings-color-input {
   width: 100%;
   height: 44px;
-  border-radius: 10px;
+  border-radius: var(--radius-md);
   border: none;
   cursor: pointer;
   -webkit-appearance: none;
@@ -780,7 +803,7 @@ button {
 }
 
 .settings-color-input::-webkit-color-swatch {
-  border-radius: 10px;
+  border-radius: var(--radius-md);
   border: 2px solid var(--apple-separator);
 }
 
@@ -788,11 +811,11 @@ button {
 .settings-select {
   width: 100%;
   padding: 12px 16px;
-  border-radius: 10px;
+  border-radius: var(--radius-md);
   border: none;
   background: var(--apple-grouped-bg);
   color: var(--apple-text-primary);
-  font-size: 17px;
+  font-size: var(--font-md);
   letter-spacing: -0.4px;
   cursor: pointer;
   appearance: none;
@@ -808,18 +831,18 @@ button {
 
 /* Close drawer button */
 .drawer-close-btn {
-  margin: 12px 16px 0;
-  width: calc(100% - 32px);
+  display: block;
+  width: 100%;
   padding: 14px;
-  border-radius: 12px;
+  border-radius: var(--radius-lg);
   border: none;
   background: var(--apple-elevated-bg);
   color: var(--apple-system-blue);
-  font-size: 17px;
+  font-size: var(--font-md);
   font-weight: 600;
   letter-spacing: -0.4px;
   cursor: pointer;
-  transition: background var(--transition-fast), transform 0.1s ease;
+  transition: background var(--transition-fast), transform var(--transition-press);
 }
 
 .drawer-close-btn:hover {
@@ -841,7 +864,7 @@ button {
 .script-editor-overlay {
   position: fixed;
   inset: 0;
-  background: #1c1c1e;
+  background: var(--apple-bg-secondary);
   z-index: 300;
   display: flex;
   flex-direction: column;
@@ -868,7 +891,8 @@ button {
   backdrop-filter: saturate(180%) blur(20px);
   -webkit-backdrop-filter: saturate(180%) blur(20px);
   min-height: 44px;
-  gap: 8px;
+  gap: var(--radius-sm);
+  flex-shrink: 0;
 }
 
 .editor-close-btn {
@@ -877,11 +901,11 @@ button {
   align-items: center;
   gap: 4px;
   padding: 8px 4px;
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   border: none;
   background: none;
   color: var(--apple-system-blue);
-  font-size: 17px;
+  font-size: var(--font-md);
   font-weight: 400;
   letter-spacing: -0.4px;
   cursor: pointer;
@@ -901,7 +925,7 @@ button {
 
 .editor-title {
   justify-self: center;
-  font-size: 17px;
+  font-size: var(--font-md);
   font-weight: 600;
   color: var(--apple-text-primary);
   letter-spacing: -0.4px;
@@ -914,11 +938,11 @@ button {
 .editor-save-btn {
   justify-self: end;
   padding: 8px 4px;
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   border: none;
   background: none;
   color: var(--apple-system-blue);
-  font-size: 17px;
+  font-size: var(--font-md);
   font-weight: 600;
   letter-spacing: -0.4px;
   cursor: pointer;
@@ -942,18 +966,18 @@ button {
   padding: 16px;
   display: flex;
   flex-direction: column;
-  background: #000;
+  background: var(--apple-bg-primary);
 }
 
 .editor-textarea {
   flex: 1;
   width: 100%;
   padding: 16px;
-  border-radius: 12px;
+  border-radius: var(--radius-lg);
   border: none;
   background: var(--apple-grouped-bg);
   color: var(--apple-text-primary);
-  font-size: 17px;
+  font-size: var(--font-md);
   font-weight: 400;
   letter-spacing: -0.4px;
   line-height: 1.5;
@@ -973,7 +997,7 @@ button {
 .editor-char-count {
   margin-top: 12px;
   text-align: right;
-  font-size: 13px;
+  font-size: var(--font-xs);
   font-variant-numeric: tabular-nums;
   color: var(--apple-text-secondary);
   letter-spacing: -0.08px;
@@ -1014,7 +1038,7 @@ button {
     left: 50%;
     bottom: calc(var(--toolbar-height) + 20px + var(--safe-area-bottom));
     transform: translateX(-50%) translateY(20px);
-    border-radius: 14px;
+    border-radius: var(--radius-xl);
     opacity: 0;
     pointer-events: none;
     box-shadow: 0 8px 40px rgba(0, 0, 0, 0.4), 0 0 1px rgba(255, 255, 255, 0.1);
@@ -1053,33 +1077,33 @@ button {
   }
 
   .floating-toolbar {
-    gap: 8px;
+    gap: var(--radius-sm);
     padding: 10px;
     padding-bottom: calc(10px + var(--safe-area-bottom));
   }
 
   .toolbar-btn {
     padding: 8px 14px;
-    font-size: 15px;
-    border-radius: 20px;
+    font-size: var(--font-sm);
+    border-radius: var(--radius-lg);
     min-height: 40px;
   }
 
   .toolbar-btn-play {
     padding: 8px 20px;
     min-width: 88px;
-    font-size: 15px;
+    font-size: var(--font-sm);
   }
 
   .speed-control {
     height: 40px;
-    border-radius: 20px;
+    border-radius: var(--radius-lg);
   }
 
   .speed-control .speed-btn {
     width: 32px;
     height: 32px;
-    border-radius: 16px;
+    border-radius: var(--radius-round);
   }
 
   .speed-control .speed-value {
@@ -1093,7 +1117,7 @@ button {
 
   .drawer-tab {
     padding: 8px 12px;
-    font-size: 13px;
+    font-size: var(--font-xs);
   }
 
   .drawer-tabs {
@@ -1112,8 +1136,8 @@ button {
   }
 
   .floating-toolbar {
-    gap: 6px;
-    padding: 8px;
+    gap: var(--radius-xs);
+    padding: var(--radius-sm);
   }
 
   .floating-toolbar.auto-hide {
@@ -1129,14 +1153,14 @@ button {
     padding: 6px 12px;
     min-width: 36px;
     min-height: 36px;
-    font-size: 13px;
-    border-radius: 18px;
+    font-size: var(--font-xs);
+    border-radius: var(--radius-md);
   }
 
   .toolbar-btn-icon {
     padding: 6px;
     min-width: 36px;
-    border-radius: 18px;
+    border-radius: var(--radius-md);
   }
 
   .toolbar-btn-icon svg {
@@ -1152,20 +1176,20 @@ button {
 
   .speed-control {
     height: 36px;
-    border-radius: 18px;
+    border-radius: var(--radius-md);
     padding: 3px;
   }
 
   .speed-control .speed-btn {
     width: 30px;
     height: 30px;
-    border-radius: 15px;
+    border-radius: var(--radius-round);
     font-size: 16px;
   }
 
   .speed-control .speed-value {
     min-width: 38px;
-    font-size: 13px;
+    font-size: var(--font-xs);
   }
 
   .settings-drawer {
@@ -1195,7 +1219,7 @@ button {
   cursor: pointer;
   inset: 0;
   background: var(--apple-toggle-off);
-  border-radius: 31px;
+  border-radius: var(--radius-pill);
   transition: background var(--transition-normal);
 }
 
@@ -1207,7 +1231,7 @@ button {
   left: 2px;
   bottom: 2px;
   background: var(--apple-text-primary);
-  border-radius: 50%;
+  border-radius: var(--radius-round);
   transition: transform var(--transition-normal), width var(--transition-fast);
   box-shadow: 0 3px 8px rgba(0, 0, 0, 0.15), 0 1px 3px rgba(0, 0, 0, 0.1);
 }
@@ -1270,7 +1294,7 @@ button {
 /* Flip controls group styling */
 .flip-controls-group {
   background: var(--apple-elevated-bg);
-  border-radius: 12px;
+  border-radius: var(--radius-lg);
   overflow: hidden;
 }
 
@@ -1300,14 +1324,14 @@ button {
 }
 
 .flip-control-title {
-  font-size: 17px;
+  font-size: var(--font-md);
   font-weight: 400;
   color: var(--apple-text-primary);
   letter-spacing: -0.4px;
 }
 
 .flip-control-subtitle {
-  font-size: 13px;
+  font-size: var(--font-xs);
   font-weight: 400;
   color: var(--apple-text-secondary);
   letter-spacing: -0.08px;
@@ -1315,23 +1339,31 @@ button {
 }
 
 /* When drawer is open, teleprompter shrinks */
-.teleprompter-container.drawer-open {
-  height: calc(100vh - var(--toolbar-height) - var(--drawer-max-height) - var(--safe-area-bottom));
+.teleprompter-container {
   transition: height var(--transition-normal);
 }
 
+.teleprompter-container.drawer-open {
+  height: calc(100vh - var(--toolbar-height) - var(--drawer-max-height) - var(--safe-area-bottom));
+}
+
 /* Fullscreen mode: hide toolbar, full height teleprompter */
-:fullscreen .floating-toolbar {
+:fullscreen .floating-toolbar,
+:-webkit-full-screen .floating-toolbar {
   transform: translateY(100%);
 }
 
-:fullscreen .teleprompter-container {
+:fullscreen .teleprompter-container,
+:-webkit-full-screen .teleprompter-container {
   height: 100vh;
+  padding-bottom: 0;
 }
 
 /* Show toolbar on hover in fullscreen */
 :fullscreen .floating-toolbar:hover,
-:fullscreen .floating-toolbar:focus-within {
+:fullscreen .floating-toolbar:focus-within,
+:-webkit-full-screen .floating-toolbar:hover,
+:-webkit-full-screen .floating-toolbar:focus-within {
   transform: translateY(0);
 }
 
@@ -1341,17 +1373,7 @@ button {
 
 /* Disable hover effects on touch devices to prevent sticky states */
 @media (hover: none) {
-  .toolbar-btn:hover,
-  .toolbar-btn-edit:hover,
-  .toolbar-btn-settings:hover,
-  .toolbar-btn-fullscreen:hover,
-  .toolbar-btn-help:hover,
-  .toolbar-btn-play:hover,
-  .toolbar-btn-play.playing:hover,
-  .toolbar-btn-play.countdown:hover {
-    background: inherit;
-  }
-
+  /* Reset all interactive hover states to their default backgrounds */
   .toolbar-btn-edit:hover,
   .toolbar-btn-settings:hover,
   .toolbar-btn-fullscreen:hover,
@@ -1376,7 +1398,7 @@ button {
   }
 
   .drawer-tab:hover:not(.active) {
-    background: none;
+    background: transparent;
   }
 
   .flip-control-row:hover {
@@ -1392,7 +1414,7 @@ button {
   }
 
   .drawer-close-btn:hover {
-    background: var(--apple-grouped-bg);
+    background: var(--apple-elevated-bg);
   }
 
   .help-modal-close:hover {
