@@ -183,8 +183,14 @@ export class TeleprompterApp {
     const totalLines = lines.length || 1;
     const progress = (this.state.activeLineIndex / totalLines) * 100;
 
+    // Get RSVP state if in RSVP mode
+    const rsvpState = this.display?.getRsvpState();
+
+    // Use display's isPlaying() to get the correct state for all modes
+    const isPlaying = this.display?.isPlaying() ?? this.state.isScrolling;
+
     return {
-      isScrolling: this.state.isScrolling,
+      isScrolling: isPlaying,
       speed: this.state.scrollSpeed,
       progress: Math.min(100, Math.max(0, progress)),
       currentLine: this.state.activeLineIndex,
@@ -193,6 +199,9 @@ export class TeleprompterApp {
       scrollMode: this.state.scrollMode,
       currentPage: this.state.currentPage,
       totalPages: Math.max(1, Math.ceil(totalLines / 10)), // Rough estimate
+      rsvpSpeed: this.state.rsvpSpeed,
+      rsvpWordIndex: rsvpState?.wordIndex,
+      rsvpTotalWords: rsvpState?.totalWords,
     };
   }
 
@@ -281,14 +290,8 @@ export class TeleprompterApp {
   private broadcastTalentState() {
     if (!this.talentChannel) return;
 
-    // Get current transform from display
-    const textInner = this.mainContainer?.querySelector('.teleprompt-text-inner') as HTMLElement | null;
-    let translateY = 0;
-    if (textInner) {
-      const transform = textInner.style.transform || '';
-      const translateYMatch = transform.match(/translateY\((-?[\d.]+)px\)/);
-      translateY = translateYMatch ? parseFloat(translateYMatch[1]) : 0;
-    }
+    // Get current translateY from display component (avoids fragile transform parsing)
+    const translateY = this.display?.getTranslateY() ?? 0;
 
     this.talentChannel.postMessage({
       type: 'state',

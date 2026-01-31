@@ -36,6 +36,10 @@ export class SettingsDrawer {
   private overlayOpacityInput: HTMLInputElement | null = null;
   private overlayOpacityLabel: HTMLLabelElement | null = null;
   private contrastIndicator: HTMLSpanElement | null = null;
+  private rsvpSpeedInput: HTMLInputElement | null = null;
+  private rsvpSpeedLabel: HTMLLabelElement | null = null;
+  private rsvpSpeedGroup: HTMLDivElement | null = null;
+  private scrollModeSelect: HTMLSelectElement | null = null;
   private tabButtons: HTMLButtonElement[] = [];
   private closeBtn: HTMLButtonElement | null = null;
   private resetBtn: HTMLButtonElement | null = null;
@@ -590,6 +594,7 @@ export class SettingsDrawer {
     this.maxWordsPerLineInput.type = "number";
     this.maxWordsPerLineInput.className = "settings-select";
     this.maxWordsPerLineInput.min = CONFIG.MAX_WORDS_PER_LINE.MIN.toString();
+    this.maxWordsPerLineInput.max = CONFIG.MAX_WORDS_PER_LINE.MAX.toString();
     this.maxWordsPerLineInput.value = this.state.maxWordsPerLine.toString();
     this.maxWordsPerLineInput.addEventListener("input", () => {
       const value = this.maxWordsPerLineInput!.valueAsNumber;
@@ -643,13 +648,14 @@ export class SettingsDrawer {
     scrollModeLabel.className = "settings-label";
     scrollModeLabel.textContent = i18n.t('scrollMode');
 
-    const scrollModeSelect = document.createElement("select");
-    scrollModeSelect.className = "settings-select";
+    this.scrollModeSelect = document.createElement("select");
+    this.scrollModeSelect.className = "settings-select";
 
     const scrollModes: { value: ScrollMode; label: string }[] = [
       { value: 'continuous', label: i18n.t('continuous') },
       { value: 'paging', label: i18n.t('paging') },
       { value: 'voice', label: i18n.t('voice') },
+      { value: 'rsvp', label: i18n.t('rsvp') },
     ];
 
     scrollModes.forEach(({ value, label }) => {
@@ -659,22 +665,53 @@ export class SettingsDrawer {
       if (this.state.scrollMode === value) {
         option.selected = true;
       }
-      scrollModeSelect.appendChild(option);
+      this.scrollModeSelect!.appendChild(option);
     });
 
-    scrollModeSelect.addEventListener("change", () => {
-      this.state.scrollMode = scrollModeSelect.value as ScrollMode;
+    this.scrollModeSelect.addEventListener("change", () => {
+      this.state.scrollMode = this.scrollModeSelect!.value as ScrollMode;
+      this.updateRsvpSpeedVisibility();
       this.onStateChange();
       document.dispatchEvent(new CustomEvent("scroll-mode-changed"));
     });
 
     const scrollModeRow = document.createElement("div");
     scrollModeRow.className = "settings-row";
-    scrollModeRow.appendChild(scrollModeSelect);
+    scrollModeRow.appendChild(this.scrollModeSelect);
 
     scrollModeGroup.appendChild(scrollModeLabel);
     scrollModeGroup.appendChild(scrollModeRow);
     panel.appendChild(scrollModeGroup);
+
+    // RSVP Speed (visible when RSVP mode is selected)
+    this.rsvpSpeedGroup = this.createSettingsGroup();
+    this.rsvpSpeedLabel = document.createElement("label");
+    this.rsvpSpeedLabel.className = "settings-label";
+    this.rsvpSpeedLabel.textContent = `${i18n.t('rsvpSpeed')}: ${this.state.rsvpSpeed} ${i18n.t('wpm')}`;
+
+    this.rsvpSpeedInput = document.createElement("input");
+    this.rsvpSpeedInput.type = "range";
+    this.rsvpSpeedInput.min = CONFIG.RSVP_SPEED.MIN.toString();
+    this.rsvpSpeedInput.max = CONFIG.RSVP_SPEED.MAX.toString();
+    this.rsvpSpeedInput.step = CONFIG.RSVP_SPEED.STEP.toString();
+    this.rsvpSpeedInput.value = this.state.rsvpSpeed.toString();
+    this.rsvpSpeedInput.addEventListener("input", () => {
+      this.state.rsvpSpeed = this.rsvpSpeedInput!.valueAsNumber;
+      this.rsvpSpeedLabel!.textContent = `${i18n.t('rsvpSpeed')}: ${this.state.rsvpSpeed} ${i18n.t('wpm')}`;
+      this.onStateChange();
+      document.dispatchEvent(new CustomEvent("rsvp-speed-changed"));
+    });
+
+    const rsvpSpeedRow = document.createElement("div");
+    rsvpSpeedRow.className = "settings-row";
+    rsvpSpeedRow.appendChild(this.rsvpSpeedInput);
+
+    this.rsvpSpeedGroup.appendChild(this.rsvpSpeedLabel);
+    this.rsvpSpeedGroup.appendChild(rsvpSpeedRow);
+    panel.appendChild(this.rsvpSpeedGroup);
+
+    // Set initial visibility
+    this.updateRsvpSpeedVisibility();
 
     // Text Direction
     const textDirGroup = this.createSettingsGroup();
@@ -764,6 +801,12 @@ export class SettingsDrawer {
     const group = document.createElement("div");
     group.className = "settings-group";
     return group;
+  }
+
+  private updateRsvpSpeedVisibility(): void {
+    if (this.rsvpSpeedGroup) {
+      this.rsvpSpeedGroup.style.display = this.state.scrollMode === 'rsvp' ? 'block' : 'none';
+    }
   }
 
   private switchTab(tabId: string) {
@@ -861,6 +904,13 @@ export class SettingsDrawer {
     if (this.overlayOpacityLabel) {
       this.overlayOpacityLabel.textContent = `${i18n.t('overlayOpacity')}: ${Math.round(this.state.overlayOpacity * 100)}%`;
     }
+    if (this.rsvpSpeedInput) {
+      this.rsvpSpeedInput.value = this.state.rsvpSpeed.toString();
+    }
+    if (this.rsvpSpeedLabel) {
+      this.rsvpSpeedLabel.textContent = `${i18n.t('rsvpSpeed')}: ${this.state.rsvpSpeed} ${i18n.t('wpm')}`;
+    }
+    this.updateRsvpSpeedVisibility();
   }
 
   open() {
@@ -924,20 +974,21 @@ export class SettingsDrawer {
   private resetToDefaults() {
     // Reset all settings to CONFIG defaults
     this.state.fontSize = CONFIG.FONT_SIZE.DEFAULT;
-    this.state.fontFamily = 'System';
-    this.state.fontColor = '#FFFFFF';
-    this.state.backgroundColor = '#000000';
+    this.state.fontFamily = CONFIG.DEFAULTS.FONT_FAMILY;
+    this.state.fontColor = CONFIG.DEFAULTS.FONT_COLOR;
+    this.state.backgroundColor = CONFIG.DEFAULTS.BACKGROUND_COLOR;
     this.state.lineSpacing = CONFIG.LINE_SPACING.DEFAULT;
     this.state.letterSpacing = CONFIG.LETTER_SPACING.DEFAULT;
     this.state.scrollSpeed = CONFIG.SCROLL_SPEED.DEFAULT;
     this.state.maxWordsPerLine = CONFIG.MAX_WORDS_PER_LINE.DEFAULT;
-    this.state.isFlipped = false;
-    this.state.isFlippedVertical = false;
-    this.state.readingGuideEnabled = false;
+    this.state.isFlipped = CONFIG.DEFAULTS.IS_FLIPPED;
+    this.state.isFlippedVertical = CONFIG.DEFAULTS.IS_FLIPPED_VERTICAL;
+    this.state.readingGuideEnabled = CONFIG.DEFAULTS.READING_GUIDE_ENABLED;
     this.state.overlayOpacity = CONFIG.OVERLAY_OPACITY.DEFAULT;
     this.state.horizontalMargin = CONFIG.HORIZONTAL_MARGIN.DEFAULT;
-    this.state.textDirection = 'auto';
-    this.state.scrollMode = 'continuous';
+    this.state.textDirection = CONFIG.DEFAULTS.TEXT_DIRECTION;
+    this.state.scrollMode = CONFIG.DEFAULTS.SCROLL_MODE;
+    this.state.rsvpSpeed = CONFIG.RSVP_SPEED.DEFAULT;
 
     // Sync UI inputs to new values
     this.syncInputsFromState();
@@ -962,6 +1013,11 @@ export class SettingsDrawer {
     if (this.escKeyHandler) {
       document.removeEventListener("keydown", this.escKeyHandler);
       this.escKeyHandler = null;
+    }
+    // Deactivate focus trap to restore focus and clean up listeners
+    if (this.focusTrap) {
+      this.focusTrap.deactivate();
+      this.focusTrap = null;
     }
     if (this.backdrop && this.backdrop.parentNode) {
       this.backdrop.parentNode.removeChild(this.backdrop);

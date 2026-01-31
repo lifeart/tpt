@@ -1,3 +1,4 @@
+import { CONFIG } from "./config";
 import { i18n, type Translations } from "./i18n";
 
 // Helper function for formatting labels with values
@@ -37,7 +38,9 @@ export function splitTextIntoLines(text: string, maxWordsPerLine: number): strin
 // Calculate estimated duration based on text lines and scroll speed
 export function calculateDuration(text: string, linesPerSecond: number, maxWordsPerLine: number): { minutes: number; seconds: number } {
   const totalLines = splitTextIntoLines(text, maxWordsPerLine).length;
-  const totalSeconds = totalLines / linesPerSecond;
+  // Guard against zero/negative scroll speed to prevent Infinity/NaN
+  const safeSpeed = Math.max(linesPerSecond, CONFIG.SCROLL_SPEED.MIN);
+  const totalSeconds = totalLines / safeSpeed;
   return {
     minutes: Math.floor(totalSeconds / 60),
     seconds: Math.round(totalSeconds % 60)
@@ -98,7 +101,7 @@ export function importScript(): Promise<string> {
         if (!input.files?.length) {
           reject(new Error('Import cancelled: File dialog closed'));
         }
-      }, 300);
+      }, CONFIG.IMPORT_CANCEL_DETECTION_DELAY);
     };
     window.addEventListener('focus', handleFocus);
     input.click();
@@ -121,8 +124,8 @@ export function isRTL(text: string): boolean {
   const rtlChars = /[\u0591-\u07FF\uFB1D-\uFDFD\uFE70-\uFEFC]/g;
   const sample = text.slice(0, 200); // Sample first 200 chars
   const matches = sample.match(rtlChars) || [];
-  // Consider RTL if more than 30% of sampled characters are RTL
-  return matches.length > sample.length * 0.3;
+  // Consider RTL if more than threshold of sampled characters are RTL
+  return matches.length > sample.length * CONFIG.RTL_DETECTION_THRESHOLD;
 }
 
 // Generate SRT subtitle file from text

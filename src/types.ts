@@ -1,3 +1,18 @@
+// Event name constants to prevent typos
+export const EVENTS = {
+  SCROLLING_TOGGLED: 'scrolling-toggled',
+  TOGGLE_SCROLLING: 'toggle-scrolling',
+  BACK_TO_TOP: 'back-to-top',
+  SPEED_CHANGED: 'speed-changed',
+  SETTINGS_CHANGED: 'settings-changed',
+  DRAWER_OPENED: 'drawer-opened',
+  DRAWER_CLOSED: 'drawer-closed',
+  SCROLL_MODE_CHANGED: 'scroll-mode-changed',
+  PAGE_CHANGED: 'page-changed',
+  ADVANCE_PAGE: 'advance-page',
+  RSVP_SPEED_CHANGED: 'rsvp-speed-changed',
+} as const;
+
 // Custom event types for type safety
 export interface ScrollingToggledDetail {
   isScrolling: boolean;
@@ -5,7 +20,7 @@ export interface ScrollingToggledDetail {
 }
 
 // Scroll mode types
-export type ScrollMode = 'continuous' | 'paging' | 'voice';
+export type ScrollMode = 'continuous' | 'paging' | 'voice' | 'rsvp';
 
 // Text direction for RTL support
 export type TextDirection = 'auto' | 'ltr' | 'rtl';
@@ -28,6 +43,7 @@ export interface PersistedSettings {
   overlayOpacity: number;
   horizontalMargin: number;
   textDirection: TextDirection;
+  rsvpSpeed: number;
 }
 
 // Page change event detail
@@ -55,5 +71,6 @@ declare global {
     "scroll-mode-changed": CustomEvent<void>;
     "page-changed": CustomEvent<PageChangedDetail>;
     "advance-page": CustomEvent<{ direction: 1 | -1 }>;
+    "rsvp-speed-changed": CustomEvent<void>;
   }
 }

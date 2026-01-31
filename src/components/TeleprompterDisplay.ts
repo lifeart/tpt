@@ -5,6 +5,7 @@ import type { PageChangedDetail, SafariDocument } from "../types";
 import { splitTextIntoLines, isRTL, parseHexColor } from "../utils";
 import { VoiceScrollEngine, isVoiceSupported } from "../voice-scroll";
 import { i18n } from "../i18n";
+import { RSVPDisplay } from "./RSVPDisplay";
 
 // Teleprompter Display Component
 export class TeleprompterDisplay {
@@ -38,6 +39,8 @@ export class TeleprompterDisplay {
   private smoothScrollAnimationId: number | null = null;
   private targetTranslateY: number = 0;
   private isManualNavigation: boolean = false; // Skip activeLineIndex override during manual nav
+  // Wheel event throttling
+  private lastWheelTime: number = 0;
   // Paging mode state
   private totalPages: number = 1;
   // Inline editing state
@@ -50,6 +53,9 @@ export class TeleprompterDisplay {
   private recognizedTextTimeout: number | null = null;
   // Inline editing event handler (stored for cleanup)
   private dblclickHandler: ((e: MouseEvent) => void) | null = null;
+  // RSVP mode
+  private rsvpDisplay: RSVPDisplay | null = null;
+  private rsvpSpeedChangedHandler: (() => void) | null = null;
 
   constructor(container: HTMLElement, state: TeleprompterState) {
     this.state = state;
@@ -109,11 +115,39 @@ export class TeleprompterDisplay {
     this.setupCustomEventListeners();
     this.setupInlineEditing();
     this.setupVoiceScroll();
+    this.setupRSVP();
     this.calculateTotalPages();
   }
 
   private setupWheelNavigation() {
     this.wheelHandler = (e: WheelEvent) => {
+      // Throttle wheel events for performance (~60fps)
+      const now = performance.now();
+      if (now - this.lastWheelTime < CONFIG.WHEEL_THROTTLE_INTERVAL) {
+        e.preventDefault();
+        return;
+      }
+      this.lastWheelTime = now;
+
+      // Handle RSVP mode separately - navigate words
+      if (this.state.scrollMode === 'rsvp' && this.rsvpDisplay) {
+        // Only handle when not playing
+        if (this.rsvpDisplay.getIsPlaying()) return;
+
+        e.preventDefault();
+
+        // Navigate words based on scroll direction
+        const currentIndex = this.rsvpDisplay.getCurrentIndex();
+        if (e.deltaY > 0) {
+          // Scroll down = next word
+          this.rsvpDisplay.goToWord(currentIndex + 1);
+        } else if (e.deltaY < 0) {
+          // Scroll up = previous word
+          this.rsvpDisplay.goToWord(currentIndex - 1);
+        }
+        return;
+      }
+
       // Only handle wheel when not scrolling (paused)
       if (this.state.isScrolling) return;
 
@@ -146,7 +180,8 @@ export class TeleprompterDisplay {
       this.startSmoothScroll();
     };
 
-    this.telepromptText.addEventListener("wheel", this.wheelHandler, { passive: false });
+    // Attach to main element so wheel works in all modes (including RSVP where telepromptText is hidden)
+    this.element.addEventListener("wheel", this.wheelHandler, { passive: false });
   }
 
   private setupKeyboardNavigation() {
@@ -157,6 +192,10 @@ export class TeleprompterDisplay {
       const ctrlOrCmd = isMac ? e.metaKey : e.ctrlKey;
       // --- Custom Shortcuts ---
       if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
+        // Don't handle arrow keys if typing in an input field
+        if (e.target instanceof HTMLTextAreaElement || e.target instanceof HTMLInputElement) {
+          return;
+        }
         if (ctrlOrCmd) {
           // Cmd/Ctrl + Left/Right: Font size
           if (e.key === "ArrowLeft") {
@@ -168,6 +207,14 @@ export class TeleprompterDisplay {
           // Notify UI components to update their displays
           document.dispatchEvent(new CustomEvent("settings-changed"));
           this.state.saveSettings();
+        } else if (this.state.scrollMode === 'rsvp' && this.rsvpDisplay) {
+          // In RSVP mode: Left/Right adjusts WPM
+          if (e.key === "ArrowLeft") {
+            this.rsvpDisplay.adjustSpeed(-CONFIG.RSVP_SPEED.STEP);
+          } else {
+            this.rsvpDisplay.adjustSpeed(CONFIG.RSVP_SPEED.STEP);
+          }
+          document.dispatchEvent(new CustomEvent("rsvp-speed-changed"));
         } else {
           // Left/Right: Scroll speed in lines per second
           if (e.key === "ArrowLeft") {
@@ -202,6 +249,16 @@ export class TeleprompterDisplay {
           // Notify UI components to update their displays
           document.dispatchEvent(new CustomEvent("settings-changed"));
           this.state.saveSettings();
+        } else if (this.state.scrollMode === 'rsvp' && this.rsvpDisplay && !this.rsvpDisplay.getIsPlaying()) {
+          // RSVP mode: navigate words with arrow keys (when paused)
+          const currentIndex = this.rsvpDisplay.getCurrentIndex();
+          if (e.key === "ArrowUp") {
+            this.rsvpDisplay.goToWord(currentIndex - 1);
+          } else {
+            this.rsvpDisplay.goToWord(currentIndex + 1);
+          }
+          e.preventDefault();
+          return;
         } else if (e.shiftKey && !this.state.isScrolling) {
           // Shift + Up/Down: Jump to prev/next cue point
           const cuePointsArray = Array.from(this.state.cuePoints).sort((a, b) => a - b);
@@ -472,6 +529,11 @@ export class TeleprompterDisplay {
       this.voiceEngine.updateScript(this.state.text, this.state.maxWordsPerLine);
     }
 
+    // Update RSVP display if in RSVP mode
+    if (this.rsvpDisplay && this.state.scrollMode === 'rsvp') {
+      this.rsvpDisplay.setWords(this.state.text);
+    }
+
     // Use DocumentFragment for better performance
     const fragment = document.createDocumentFragment();
 
@@ -626,32 +688,37 @@ export class TeleprompterDisplay {
       this.countdownOverlay.textContent = count.toString();
 
       this.countdownIntervalId = window.setInterval(() => {
+        // Safety check: ensure overlay still exists in DOM
+        if (!this.countdownOverlay || !this.countdownOverlay.parentNode) {
+          if (this.countdownIntervalId !== null) {
+            clearInterval(this.countdownIntervalId);
+            this.countdownIntervalId = null;
+          }
+          this.isCountingDown = false;
+          resolve(false); // Aborted - overlay removed
+          return;
+        }
+
         // Check if countdown was cancelled
         if (!this.isCountingDown) {
           if (this.countdownIntervalId !== null) {
             clearInterval(this.countdownIntervalId);
             this.countdownIntervalId = null;
           }
-          if (this.countdownOverlay) {
-            this.countdownOverlay.style.display = "none";
-          }
+          this.countdownOverlay.style.display = "none";
           resolve(false); // Cancelled
           return;
         }
 
         count--;
         if (count > 0) {
-          if (this.countdownOverlay) {
-            this.countdownOverlay.textContent = count.toString();
-          }
+          this.countdownOverlay.textContent = count.toString();
         } else {
           if (this.countdownIntervalId !== null) {
             clearInterval(this.countdownIntervalId);
             this.countdownIntervalId = null;
           }
-          if (this.countdownOverlay) {
-            this.countdownOverlay.style.display = "none";
-          }
+          this.countdownOverlay.style.display = "none";
           this.isCountingDown = false;
           resolve(true); // Completed
         }
@@ -696,6 +763,12 @@ export class TeleprompterDisplay {
   }
 
   toggleScrolling() {
+    // In RSVP mode, toggle RSVP playback
+    if (this.state.scrollMode === 'rsvp' && this.rsvpDisplay) {
+      this.toggleRSVP();
+      return;
+    }
+
     // In voice mode, toggle voice listening instead of continuous scroll
     if (this.state.scrollMode === 'voice' && this.voiceEngine) {
       if (this.voiceEngine.isActive()) {
@@ -858,6 +931,12 @@ export class TeleprompterDisplay {
         this.voiceEngine.reset();
       }
 
+      // Reset RSVP if in RSVP mode
+      if (this.rsvpDisplay && this.state.scrollMode === 'rsvp') {
+        this.rsvpDisplay.reset();
+        this.rsvpDisplay.setWords(this.state.text);
+      }
+
       // Notify of page reset in paging mode
       if (this.state.scrollMode === 'paging') {
         document.dispatchEvent(new CustomEvent<PageChangedDetail>("page-changed", {
@@ -871,6 +950,8 @@ export class TeleprompterDisplay {
     this.scrollModeChangedHandler = () => {
       this.calculateTotalPages();
       if (this.state.scrollMode === 'paging') {
+        // Stop continuous scroll if active
+        this.stopContinuousScroll();
         // Reset to first page
         this.state.currentPage = 0;
         this.scrollToPage(0);
@@ -882,17 +963,35 @@ export class TeleprompterDisplay {
         if (this.voiceIndicator) {
           this.voiceIndicator.style.display = "none";
         }
+        // Hide RSVP mode
+        this.hideRSVPMode();
       } else if (this.state.scrollMode === 'voice') {
+        // Stop continuous scroll if active
+        this.stopContinuousScroll();
         // Show voice indicator (user clicks Play to start listening)
         if (this.voiceIndicator) {
           this.voiceIndicator.style.display = "flex";
         }
+        // Hide RSVP mode
+        this.hideRSVPMode();
+      } else if (this.state.scrollMode === 'rsvp') {
+        // Stop continuous scroll if active
+        this.stopContinuousScroll();
+        // Stop voice if active and hide indicator
+        this.stopVoiceMode();
+        if (this.voiceIndicator) {
+          this.voiceIndicator.style.display = "none";
+        }
+        // Show RSVP mode
+        this.showRSVPMode();
       } else {
         // Continuous mode - stop voice if active and hide indicator
         this.stopVoiceMode();
         if (this.voiceIndicator) {
           this.voiceIndicator.style.display = "none";
         }
+        // Hide RSVP mode
+        this.hideRSVPMode();
       }
     };
     document.addEventListener("scroll-mode-changed", this.scrollModeChangedHandler as EventListener);
@@ -964,6 +1063,10 @@ export class TeleprompterDisplay {
     this.updateTelepromptText();
     // Recalculate pages after style changes
     this.calculateTotalPages();
+    // Update RSVP styles if active
+    if (this.rsvpDisplay) {
+      this.rsvpDisplay.updateStyles();
+    }
   }
 
   private getEffectiveTextDirection(): 'ltr' | 'rtl' {
@@ -1237,9 +1340,10 @@ export class TeleprompterDisplay {
   private showRecognizedText(text: string) {
     if (!this.recognizedTextDisplay) return;
 
-    // Limit to last 6 words to prevent text from growing too long
+    // Limit to last N words to prevent text from growing too long
+    const maxWords = CONFIG.RECOGNIZED_TEXT_MAX_WORDS;
     const words = text.trim().split(/\s+/);
-    const displayText = words.length > 6 ? '...' + words.slice(-6).join(' ') : text;
+    const displayText = words.length > maxWords ? '...' + words.slice(-maxWords).join(' ') : text;
 
     this.recognizedTextDisplay.textContent = displayText;
     this.recognizedTextDisplay.classList.add("visible");
@@ -1256,6 +1360,113 @@ export class TeleprompterDisplay {
       }
       this.recognizedTextTimeout = null;
     }, 2000);
+  }
+
+  // ============================================
+  // RSVP Mode Support
+  // ============================================
+
+  private setupRSVP() {
+    // Create RSVP display
+    this.rsvpDisplay = new RSVPDisplay(this.element, this.state);
+
+    // Set completion callback
+    this.rsvpDisplay.setOnComplete(() => {
+      // Notify that playback stopped
+      document.dispatchEvent(new CustomEvent("scrolling-toggled", {
+        detail: { isScrolling: false, isCountingDown: false },
+      }));
+    });
+
+    // If in RSVP mode, show it
+    if (this.state.scrollMode === 'rsvp') {
+      this.showRSVPMode();
+    }
+
+    // Listen for RSVP speed changes from settings
+    this.rsvpSpeedChangedHandler = () => {
+      if (this.rsvpDisplay) {
+        this.rsvpDisplay.setSpeed(this.state.rsvpSpeed);
+      }
+    };
+    document.addEventListener("rsvp-speed-changed", this.rsvpSpeedChangedHandler);
+  }
+
+  // Helper to stop continuous scrolling (used when switching modes)
+  private stopContinuousScroll(): void {
+    if (!this.state.isScrolling) return;
+
+    if (this.animationFrameId !== null) {
+      window.cancelAnimationFrame(this.animationFrameId);
+      this.animationFrameId = null;
+    }
+    this.state.isScrolling = false;
+    this.isRampingUp = false;
+    this.isRampingDown = false;
+    if (this.rampDownTimeoutId !== null) {
+      clearTimeout(this.rampDownTimeoutId);
+      this.rampDownTimeoutId = null;
+    }
+    this.element.classList.remove("is-scrolling");
+    document.dispatchEvent(new CustomEvent("scrolling-toggled", {
+      detail: { isScrolling: false, isCountingDown: false },
+    }));
+  }
+
+  private showRSVPMode() {
+    if (!this.rsvpDisplay) return;
+
+    // Hide normal text display
+    this.telepromptText.style.display = "none";
+
+    // Update RSVP content and show
+    this.rsvpDisplay.setWords(this.state.text);
+    this.rsvpDisplay.updateStyles();
+    this.rsvpDisplay.show();
+  }
+
+  private hideRSVPMode() {
+    if (!this.rsvpDisplay) return;
+
+    // Check if was playing before hiding
+    const wasPlaying = this.rsvpDisplay.getIsPlaying();
+
+    // Stop and hide RSVP
+    this.rsvpDisplay.hide();
+
+    // Show normal text display
+    this.telepromptText.style.display = "";
+
+    // Notify UI if was playing (to update play button)
+    if (wasPlaying) {
+      document.dispatchEvent(new CustomEvent("scrolling-toggled", {
+        detail: { isScrolling: false, isCountingDown: false },
+      }));
+    }
+  }
+
+  private toggleRSVP() {
+    if (!this.rsvpDisplay) return;
+
+    if (this.rsvpDisplay.getIsPlaying()) {
+      this.rsvpDisplay.pause();
+      document.dispatchEvent(new CustomEvent("scrolling-toggled", {
+        detail: { isScrolling: false, isCountingDown: false },
+      }));
+    } else {
+      const totalWords = this.rsvpDisplay.getTotalWords();
+      // If no words, don't start
+      if (totalWords === 0) return;
+
+      // If at end (last word index or beyond), reset first
+      if (this.rsvpDisplay.getCurrentIndex() >= totalWords - 1) {
+        this.rsvpDisplay.reset();
+      }
+      this.rsvpDisplay.start();
+      document.dispatchEvent(new CustomEvent("scrolling-toggled", {
+        detail: { isScrolling: true, isCountingDown: false },
+      }));
+    }
   }
 
   private startInlineEdit(lineIndex: number, lineElement: HTMLElement) {
@@ -1281,6 +1492,10 @@ export class TeleprompterDisplay {
     this.inlineEditor = document.createElement("textarea");
     this.inlineEditor.className = "inline-editor";
     this.inlineEditor.value = lineText.trim() === "\u00A0" ? "" : lineText; // Handle nbsp for empty lines
+    // Accessibility attributes
+    this.inlineEditor.setAttribute("aria-label", `${i18n.t('editScript')}: ${i18n.t('lines')} ${lineIndex + 1}`);
+    this.inlineEditor.setAttribute("aria-describedby", "inline-edit-instructions");
+    this.inlineEditor.setAttribute("role", "textbox");
     this.inlineEditor.style.cssText = `
       position: absolute;
       width: ${lineElement.offsetWidth}px;
@@ -1374,7 +1589,44 @@ export class TeleprompterDisplay {
   }
 
   // ============================================
-  // Updated Event Handlers
+  // Public API
+  // ============================================
+
+  // Get the actual playing state based on current scroll mode
+  // This is needed because different modes track playing state differently
+  isPlaying(): boolean {
+    switch (this.state.scrollMode) {
+      case 'rsvp':
+        return this.rsvpDisplay?.getIsPlaying() ?? false;
+      case 'voice':
+        return this.voiceEngine?.isActive() ?? false;
+      case 'paging':
+        // Paging mode doesn't have continuous play
+        return false;
+      default:
+        // Continuous mode uses state.isScrolling
+        return this.state.isScrolling;
+    }
+  }
+
+  // Get RSVP state for remote sync
+  getRsvpState(): { wordIndex: number; totalWords: number } | null {
+    if (!this.rsvpDisplay || this.state.scrollMode !== 'rsvp') {
+      return null;
+    }
+    return {
+      wordIndex: this.rsvpDisplay.getCurrentIndex(),
+      totalWords: this.rsvpDisplay.getTotalWords(),
+    };
+  }
+
+  // Get current translateY value for external sync (e.g., talent display)
+  getTranslateY(): number {
+    return this.currentTranslateY;
+  }
+
+  // ============================================
+  // Cleanup
   // ============================================
 
   // Cleanup method to remove event listeners and clear timers
@@ -1388,8 +1640,8 @@ export class TeleprompterDisplay {
       document.removeEventListener("back-to-top", this.backToTopHandler as EventListener);
       this.backToTopHandler = null;
     }
-    if (this.wheelHandler && this.telepromptText) {
-      this.telepromptText.removeEventListener("wheel", this.wheelHandler);
+    if (this.wheelHandler && this.element) {
+      this.element.removeEventListener("wheel", this.wheelHandler);
       this.wheelHandler = null;
     }
     if (this.scrollModeChangedHandler) {
@@ -1416,6 +1668,16 @@ export class TeleprompterDisplay {
     if (this.recognizedTextTimeout !== null) {
       clearTimeout(this.recognizedTextTimeout);
       this.recognizedTextTimeout = null;
+    }
+
+    // Cleanup RSVP
+    if (this.rsvpDisplay) {
+      this.rsvpDisplay.destroy();
+      this.rsvpDisplay = null;
+    }
+    if (this.rsvpSpeedChangedHandler) {
+      document.removeEventListener("rsvp-speed-changed", this.rsvpSpeedChangedHandler);
+      this.rsvpSpeedChangedHandler = null;
     }
 
     // Clear intervals and timeouts

@@ -2047,3 +2047,140 @@ button {
     display: none;
   }
 }
+
+/* ============================================
+   RSVP MODE STYLES
+   ============================================ */
+.rsvp-container {
+  position: absolute;
+  inset: 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 2rem;
+  padding: 2rem;
+  z-index: 5;
+}
+
+.rsvp-container.active {
+  display: flex;
+}
+
+.rsvp-word-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  max-width: 90%;
+  position: relative;
+}
+
+.rsvp-word {
+  font-size: 4em;
+  font-weight: 400;
+  white-space: nowrap;
+  text-align: center;
+  letter-spacing: 0.02em;
+  position: relative;
+  display: inline-block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.rsvp-word .orp {
+  color: var(--apple-system-red);
+}
+
+/* ORP marker line - shows where the focal point is */
+.rsvp-orp-marker {
+  position: absolute;
+  top: -0.5em;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 2px;
+  height: 0.4em;
+  background: var(--apple-system-red);
+  opacity: 0.5;
+}
+
+.rsvp-orp-marker::after {
+  content: "";
+  position: absolute;
+  bottom: -0.5em;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 2px;
+  height: 0.4em;
+  background: var(--apple-system-red);
+  opacity: 0.5;
+}
+
+.rsvp-progress-container {
+  position: absolute;
+  bottom: 2rem;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.rsvp-progress {
+  width: 200px;
+  height: 4px;
+  background: var(--apple-fill-tertiary);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.rsvp-progress-bar {
+  height: 100%;
+  background: var(--apple-system-blue);
+  transition: width 100ms ease-out;
+}
+
+.rsvp-counter {
+  font-size: var(--font-xs);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  color: var(--apple-text-secondary);
+  letter-spacing: -0.2px;
+}
+
+.rsvp-speed-display {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  padding: 6px 12px;
+  background: var(--apple-fill-tertiary);
+  border-radius: var(--radius-pill);
+  font-size: var(--font-xs);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  color: var(--apple-text-secondary);
+  letter-spacing: -0.2px;
+}
+
+/* Responsive RSVP */
+@media (max-width: 767px) {
+  .rsvp-word {
+    font-size: 2.5em;
+  }
+
+  .rsvp-progress {
+    width: 150px;
+  }
+}
+
+@media (max-width: 900px) and (max-height: 500px) {
+  .rsvp-word {
+    font-size: 2em;
+  }
+
+  .rsvp-progress-container {
+    bottom: 1rem;
+  }
+}

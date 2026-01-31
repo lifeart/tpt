@@ -18,6 +18,7 @@ A professional, free teleprompter web application for video creators, YouTubers,
 - **Continuous Scroll** - Traditional auto-scrolling teleprompter
 - **Paging Mode** - Advance page-by-page with Space/Enter (great for speeches)
 - **Voice-Follow Mode** - Auto-scroll based on your speech using Web Speech API
+- **RSVP Mode** - Rapid Serial Visual Presentation: one word at a time with ORP highlighting
 - **Mirror/Flip Mode** - Horizontal and vertical flip for beam-splitter rigs
 - **Fullscreen Mode** - Distraction-free reading
 
@@ -44,6 +45,14 @@ A professional, free teleprompter web application for video creators, YouTubers,
 - **SRT Subtitle Export** - Generate subtitle files based on scroll timing
 - **Auto-Save** - Scripts automatically saved to browser localStorage
 
+### RSVP Mode (Rapid Serial Visual Presentation)
+- **Single Word Display** - Shows one word at a time in the center of the screen
+- **ORP Highlighting** - Optimal Recognition Point highlighted in red for faster reading
+- **Adjustable Speed** - 150-600 words per minute (default: 300 WPM)
+- **Smart Punctuation Timing** - Extra pause after sentences (. ! ?) and clauses (, ; :)
+- **Progress Indicator** - Visual progress bar and word counter
+- **Speed Control** - Adjust WPM with Left/Right arrow keys or Settings slider
+
 ### Accessibility & Internationalization
 - **RTL Language Support** - Auto-detection for Hebrew, Arabic, Persian, Urdu
 - **5 Languages** - English, Russian, French, Spanish, German
@@ -57,6 +66,7 @@ A professional, free teleprompter web application for video creators, YouTubers,
 |--------|----------|
 | Play/Pause | `Space` |
 | Adjust Speed | `Left/Right Arrow` |
+| Adjust RSVP Speed (WPM) | `Left/Right Arrow` (in RSVP mode) |
 | Navigate Lines | `Up/Down Arrow` |
 | Font Size | `Ctrl/Cmd + Left/Right Arrow` |
 | Line Spacing | `Ctrl/Cmd + Up/Down Arrow` |
@@ -84,6 +94,7 @@ A professional, free teleprompter web application for video creators, YouTubers,
 | Core Teleprompter | Yes | Yes | Yes | Yes |
 | Remote Control | Yes | Yes | Yes (14+) | Yes |
 | Voice-Follow | Yes | No | Partial | Yes |
+| RSVP Mode | Yes | Yes | Yes | Yes |
 | Gamepad | Yes | Yes | Yes | Yes |
 
 ## Getting Started

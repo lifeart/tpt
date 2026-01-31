@@ -10,6 +10,7 @@ import {
   scrollIcon,
   pagesIcon,
   micIcon,
+  rsvpIcon,
 } from "../icons";
 import { i18n } from "../i18n";
 import type { TeleprompterState } from "../state";
@@ -36,7 +37,9 @@ export class FloatingToolbar {
   private speedControl: HTMLDivElement | null = null;
   private scrollingToggledHandler: ((e: CustomEvent<ScrollingToggledDetail>) => void) | null = null;
   private fullscreenChangeHandler: (() => void) | null = null;
+  private resizeHandler: (() => void) | null = null;
   private autoHideTimeout: number | null = null;
+  private isAutoHiding: boolean = false; // Track if auto-hide is active
   private i18nUnsubscribe: (() => void) | null = null;
 
   // Callbacks
@@ -193,6 +196,7 @@ export class FloatingToolbar {
     switch (this.state.scrollMode) {
       case 'paging': return pagesIcon;
       case 'voice': return micIcon;
+      case 'rsvp': return rsvpIcon;
       default: return scrollIcon;
     }
   }
@@ -201,6 +205,7 @@ export class FloatingToolbar {
     switch (this.state.scrollMode) {
       case 'paging': return i18n.t('paging');
       case 'voice': return i18n.t('voice');
+      case 'rsvp': return i18n.t('rsvp');
       default: return i18n.t('continuous');
     }
   }
@@ -210,7 +215,7 @@ export class FloatingToolbar {
   }
 
   private cycleScrollMode() {
-    const modes: ScrollMode[] = ['continuous', 'paging', 'voice'];
+    const modes: ScrollMode[] = ['continuous', 'paging', 'voice', 'rsvp'];
     const currentIndex = modes.indexOf(this.state.scrollMode);
     const nextIndex = (currentIndex + 1) % modes.length;
     this.state.scrollMode = modes[nextIndex];
@@ -231,6 +236,10 @@ export class FloatingToolbar {
         this.speedControl.style.display = 'none';
         this.pageIndicator.style.display = 'flex';
         this.updatePageIndicator();
+      } else if (this.state.scrollMode === 'rsvp') {
+        // In RSVP mode, hide both - RSVP has its own WPM display
+        this.speedControl.style.display = 'none';
+        this.pageIndicator.style.display = 'none';
       } else {
         this.speedControl.style.display = 'flex';
         this.pageIndicator.style.display = 'none';
@@ -344,6 +353,12 @@ export class FloatingToolbar {
     };
     document.addEventListener("fullscreenchange", this.fullscreenChangeHandler);
     document.addEventListener("webkitfullscreenchange", this.fullscreenChangeHandler);
+
+    // Listen for resize to update auto-hide behavior
+    this.resizeHandler = () => {
+      this.updateAutoHideOnResize();
+    };
+    window.addEventListener("resize", this.resizeHandler);
   }
 
   private toggleFullscreen() {
@@ -407,9 +422,14 @@ export class FloatingToolbar {
     this.updateDurationDisplay();
   }
 
+  private isPhoneLandscape(): boolean {
+    return window.innerWidth <= 900 && window.innerHeight <= 500;
+  }
+
   private startAutoHide() {
     // Only auto-hide in phone landscape mode
-    if (window.innerWidth <= 900 && window.innerHeight <= 500) {
+    if (this.isPhoneLandscape()) {
+      this.isAutoHiding = true;
       this.stopAutoHide();
       this.autoHideTimeout = window.setTimeout(() => {
         this.element.classList.add("auto-hide");
@@ -423,6 +443,19 @@ export class FloatingToolbar {
       this.autoHideTimeout = null;
     }
     this.element.classList.remove("auto-hide");
+    this.isAutoHiding = false;
+  }
+
+  private updateAutoHideOnResize() {
+    // If playing and we resize into phone landscape, start auto-hide
+    // If we resize out of phone landscape, stop auto-hide
+    if (this.state.isScrolling || this.playPauseBtn.classList.contains("playing")) {
+      if (this.isPhoneLandscape() && !this.isAutoHiding) {
+        this.startAutoHide();
+      } else if (!this.isPhoneLandscape() && this.isAutoHiding) {
+        this.stopAutoHide();
+      }
+    }
   }
 
   destroy() {
@@ -434,6 +467,10 @@ export class FloatingToolbar {
       document.removeEventListener("fullscreenchange", this.fullscreenChangeHandler);
       document.removeEventListener("webkitfullscreenchange", this.fullscreenChangeHandler);
       this.fullscreenChangeHandler = null;
+    }
+    if (this.resizeHandler) {
+      window.removeEventListener("resize", this.resizeHandler);
+      this.resizeHandler = null;
     }
     if (this.i18nUnsubscribe) {
       this.i18nUnsubscribe();

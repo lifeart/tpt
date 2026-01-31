@@ -8,9 +8,12 @@ export interface RemoteState {
   currentLine: number;
   totalLines: number;
   cuePoints: number[];
-  scrollMode: 'continuous' | 'paging' | 'voice';
+  scrollMode: 'continuous' | 'paging' | 'voice' | 'rsvp';
   currentPage?: number;
   totalPages?: number;
+  rsvpSpeed?: number;
+  rsvpWordIndex?: number;
+  rsvpTotalWords?: number;
 }
 
 export type RemoteCommand =
@@ -46,6 +49,8 @@ function stateEquals(a: RemoteState | null, b: RemoteState): boolean {
     a.totalLines === b.totalLines &&
     a.scrollMode === b.scrollMode &&
     a.currentPage === b.currentPage &&
+    a.rsvpSpeed === b.rsvpSpeed &&
+    a.rsvpWordIndex === b.rsvpWordIndex &&
     a.cuePoints.length === b.cuePoints.length &&
     a.cuePoints.every((v, i) => v === b.cuePoints[i])
   );

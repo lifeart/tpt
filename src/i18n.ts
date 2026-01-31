@@ -214,6 +214,11 @@ export interface Translations {
   tooltipImport: string;
   tooltipExport: string;
   tooltipExportSRT: string;
+
+  // RSVP mode
+  rsvp: string;
+  tooltipRsvp: string;
+  rsvpSpeed: string;
 }
 
 const translations: Record<Locale, Translations> = {
@@ -406,6 +411,11 @@ Press the Play button to start scrolling.`,
     tooltipImport: 'Load script from file',
     tooltipExport: 'Save script to file',
     tooltipExportSRT: 'Export as subtitles',
+
+    // RSVP mode
+    rsvp: 'RSVP',
+    tooltipRsvp: 'Rapid Serial Visual Presentation',
+    rsvpSpeed: 'Reading Speed (WPM)',
   },
 
   ru: {
@@ -597,6 +607,11 @@ Press the Play button to start scrolling.`,
     tooltipImport: 'Загрузить текст из файла',
     tooltipExport: 'Сохранить текст в файл',
     tooltipExportSRT: 'Экспорт субтитров',
+
+    // RSVP mode
+    rsvp: 'RSVP',
+    tooltipRsvp: 'Быстрый последовательный показ',
+    rsvpSpeed: 'Скорость чтения (сл/мин)',
   },
 
   fr: {
@@ -788,6 +803,11 @@ Appuyez sur le bouton Lecture pour commencer le défilement.`,
     tooltipImport: 'Charger un script',
     tooltipExport: 'Enregistrer le script',
     tooltipExportSRT: 'Exporter en sous-titres',
+
+    // RSVP mode
+    rsvp: 'RSVP',
+    tooltipRsvp: 'Présentation visuelle rapide et sérielle',
+    rsvpSpeed: 'Vitesse de lecture (mots/min)',
   },
 
   es: {
@@ -979,6 +999,11 @@ Presiona el botón Reproducir para comenzar el desplazamiento.`,
     tooltipImport: 'Cargar guión desde archivo',
     tooltipExport: 'Guardar guión en archivo',
     tooltipExportSRT: 'Exportar como subtítulos',
+
+    // RSVP mode
+    rsvp: 'RSVP',
+    tooltipRsvp: 'Presentación visual rápida en serie',
+    rsvpSpeed: 'Velocidad de lectura (ppm)',
   },
 
   de: {
@@ -1170,6 +1195,11 @@ Drücken Sie die Wiedergabe-Taste, um das Scrollen zu starten.`,
     tooltipImport: 'Skript aus Datei laden',
     tooltipExport: 'Skript in Datei speichern',
     tooltipExportSRT: 'Als Untertitel exportieren',
+
+    // RSVP mode
+    rsvp: 'RSVP',
+    tooltipRsvp: 'Schnelle serielle visuelle Präsentation',
+    rsvpSpeed: 'Lesegeschwindigkeit (WpM)',
   },
 };
 
@@ -1250,7 +1280,14 @@ class I18n {
   }
 
   private notifyListeners(): void {
-    this.listeners.forEach(callback => callback());
+    this.listeners.forEach(callback => {
+      try {
+        callback();
+      } catch (e) {
+        // Prevent one listener error from breaking others
+        console.warn('i18n listener error:', e);
+      }
+    });
   }
 }
 

@@ -21,4 +21,24 @@ export const CONFIG = {
   SMOOTH_SCROLL_SNAP_THRESHOLD: 0.5, // Distance threshold to snap to target
   // Reading guide settings
   READING_GUIDE_HEIGHT_MULTIPLIER: 1.5, // Multiplier for line height
+  // RSVP settings
+  RSVP_SPEED: { MIN: 150, MAX: 600, DEFAULT: 300, STEP: 25 }, // Words per minute
+  RSVP_PUNCTUATION_DELAY_MAJOR: 2, // Multiplier for . ! ?
+  RSVP_PUNCTUATION_DELAY_MINOR: 1.5, // Multiplier for , ; :
+  // Default values for non-numeric settings
+  DEFAULTS: {
+    FONT_FAMILY: 'System',
+    FONT_COLOR: '#FFFFFF',
+    BACKGROUND_COLOR: '#000000',
+    TEXT_DIRECTION: 'auto' as const,
+    SCROLL_MODE: 'continuous' as const,
+    IS_FLIPPED: false,
+    IS_FLIPPED_VERTICAL: false,
+    READING_GUIDE_ENABLED: false,
+  },
+  // Timing constants
+  IMPORT_CANCEL_DETECTION_DELAY: 300, // ms delay for file import cancel detection
+  RTL_DETECTION_THRESHOLD: 0.3, // 30% RTL chars to consider text RTL
+  RECOGNIZED_TEXT_MAX_WORDS: 6, // Max words to show in voice recognition display
+  WHEEL_THROTTLE_INTERVAL: 16, // ~60fps throttle for wheel events
 } as const;
