@@ -226,17 +226,42 @@ export class RSVPDisplay {
     const orpSpan = this.wordElement.querySelector('.orp') as HTMLElement;
     if (!orpSpan) return;
 
+    // Reset any previous transform to get accurate LAYOUT measurements
+    // (offsetLeft/offsetWidth are layout values, unaffected by transforms,
+    // but we reset anyway for consistency)
+    this.wordElement.style.transform = '';
+
+    // Force synchronous layout recalculation
+    void this.wordElement.offsetWidth;
+
+    // All measurements are in the word element's coordinate system (layout values)
+    // These are integers, unaffected by any transforms
+
+    // 1. Word element's layout width
     const wordWidth = this.wordElement.offsetWidth;
+
+    // 2. ORP span's position and width within word element
+    //    offsetLeft = distance from ORP's left margin to wordElement's left padding edge
     const orpLeft = orpSpan.offsetLeft;
     const orpWidth = orpSpan.offsetWidth;
 
-    // The word is already centered by flexbox (word center = container center)
-    // We need to shift so that ORP center aligns with container center instead
-    // Shift = (word center position) - (ORP center position within word)
-    const wordCenter = wordWidth / 2;
-    const orpCenterInWord = orpLeft + orpWidth / 2;
-    const offset = wordCenter - orpCenterInWord;
+    // 3. Calculate centers in word element's coordinate system
+    const wordCenterX = wordWidth / 2;
+    const orpCenterX = orpLeft + orpWidth / 2;
 
+    // 4. Calculate offset: shift needed to move ORP center to word center
+    //    Since word is centered by flexbox, word center = display center
+    //    After translateX(offset), ORP will be at display center
+    //
+    //    Math proof:
+    //    - Let D = display center position
+    //    - Before transform: word left edge at (D - wordWidth/2), ORP at (D - wordWidth/2 + orpCenterX)
+    //    - After translateX(offset): ORP at (D - wordWidth/2 + orpCenterX + offset)
+    //    - We want ORP at D, so: D = D - wordWidth/2 + orpCenterX + offset
+    //    - Solving: offset = wordWidth/2 - orpCenterX = wordCenterX - orpCenterX
+    const offset = wordCenterX - orpCenterX;
+
+    // Apply transform (no threshold - even small offsets matter for visual alignment)
     this.wordElement.style.transform = `translateX(${offset}px)`;
   }
 
