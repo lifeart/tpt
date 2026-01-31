@@ -17,7 +17,8 @@
     "test:trace": "playwright test --trace on",
     "test:report": "npx tsx scripts/test-report.ts",
     "test:show-report": "playwright show-report",
-    "new:test": "npx tsx scripts/new-test.ts"
+    "new:test": "npx tsx scripts/new-test.ts",
+    "screenshot": "pnpm exec vite --port 4300 & sleep 3 && pnpm exec tsx scripts/screenshot.ts && pkill -f 'vite --port 4300'"
   },
   "devDependencies": {
     "@playwright/test": "^1.58.1",
