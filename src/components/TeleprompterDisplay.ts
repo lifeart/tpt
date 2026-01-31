@@ -64,6 +64,7 @@ export class TeleprompterDisplay {
     this.element = document.createElement("div");
     this.element.className =
       "teleprompter-container flex-grow relative overflow-hidden";
+    this.element.dataset.testid = "teleprompter-display";
     if (this.state.isFlipped) this.element.classList.add("flipped");
     this.element.style.backgroundColor = this.state.backgroundColor;
 
@@ -90,6 +91,7 @@ export class TeleprompterDisplay {
     // Create reading guide overlay
     this.readingGuide = document.createElement("div");
     this.readingGuide.className = "reading-guide";
+    this.readingGuide.dataset.testid = "reading-guide";
     if (this.state.readingGuideEnabled) {
       this.readingGuide.classList.add("enabled");
     }
@@ -98,6 +100,7 @@ export class TeleprompterDisplay {
     // Create progress bar
     this.progressBar = document.createElement("div");
     this.progressBar.className = "teleprompter-progress-bar";
+    this.progressBar.dataset.testid = "progress-bar";
     this.element.appendChild(this.progressBar);
 
     // Create countdown overlay (styles in CSS)

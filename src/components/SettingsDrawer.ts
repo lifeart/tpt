@@ -62,6 +62,7 @@ export class SettingsDrawer {
     // Create drawer
     this.drawer = document.createElement("div");
     this.drawer.className = "settings-drawer";
+    this.drawer.dataset.testid = "settings-drawer";
     this.drawer.setAttribute("role", "dialog");
     this.drawer.setAttribute("aria-modal", "true");
     this.drawer.setAttribute("aria-label", i18n.t('settings'));
@@ -153,6 +154,7 @@ export class SettingsDrawer {
     this.resetBtn = document.createElement("button");
     this.resetBtn.className = "drawer-reset-btn";
     this.resetBtn.type = "button";
+    this.resetBtn.dataset.action = "reset-defaults";
     this.resetBtn.textContent = i18n.t('resetToDefaults');
     this.resetBtn.addEventListener("click", () => this.resetToDefaults());
     bottomContainer.appendChild(this.resetBtn);
@@ -161,6 +163,7 @@ export class SettingsDrawer {
     this.closeBtn = document.createElement("button");
     this.closeBtn.className = "drawer-close-btn";
     this.closeBtn.type = "button";
+    this.closeBtn.dataset.action = "close-drawer";
     this.closeBtn.textContent = i18n.t('closeDrawer');
     this.closeBtn.addEventListener("click", () => this.close());
     bottomContainer.appendChild(this.closeBtn);
@@ -200,6 +203,7 @@ export class SettingsDrawer {
 
     this.fontSizeInput = document.createElement("input");
     this.fontSizeInput.type = "range";
+    this.fontSizeInput.dataset.testid = "font-size-input";
     this.fontSizeInput.min = CONFIG.FONT_SIZE.MIN.toString();
     this.fontSizeInput.max = CONFIG.FONT_SIZE.MAX.toString();
     this.fontSizeInput.value = this.state.fontSize.toString();
@@ -420,6 +424,7 @@ export class SettingsDrawer {
     // Contrast indicator
     this.contrastIndicator = document.createElement("span");
     this.contrastIndicator.className = "contrast-indicator";
+    this.contrastIndicator.dataset.testid = "contrast-indicator";
     this.updateContrastIndicator();
 
     group.appendChild(label);
@@ -436,6 +441,7 @@ export class SettingsDrawer {
 
     this.overlayOpacityInput = document.createElement("input");
     this.overlayOpacityInput.type = "range";
+    this.overlayOpacityInput.dataset.testid = "overlay-opacity-input";
     this.overlayOpacityInput.min = CONFIG.OVERLAY_OPACITY.MIN.toString();
     this.overlayOpacityInput.max = CONFIG.OVERLAY_OPACITY.MAX.toString();
     this.overlayOpacityInput.step = CONFIG.OVERLAY_OPACITY.STEP.toString();
@@ -469,6 +475,7 @@ export class SettingsDrawer {
 
     this.horizontalMarginInput = document.createElement("input");
     this.horizontalMarginInput.type = "range";
+    this.horizontalMarginInput.dataset.testid = "horizontal-margin-input";
     this.horizontalMarginInput.min = CONFIG.HORIZONTAL_MARGIN.MIN.toString();
     this.horizontalMarginInput.max = CONFIG.HORIZONTAL_MARGIN.MAX.toString();
     this.horizontalMarginInput.value = this.state.horizontalMargin.toString();
@@ -507,6 +514,7 @@ export class SettingsDrawer {
 
     const fontFamilySelect = document.createElement("select");
     fontFamilySelect.className = "settings-select";
+    fontFamilySelect.dataset.testid = "font-family-select";
 
     const fontOptions = Object.keys(fontFamilyMap);
 
@@ -541,6 +549,7 @@ export class SettingsDrawer {
 
     this.lineSpacingInput = document.createElement("input");
     this.lineSpacingInput.type = "range";
+    this.lineSpacingInput.dataset.testid = "line-spacing-input";
     this.lineSpacingInput.min = CONFIG.LINE_SPACING.MIN.toString();
     this.lineSpacingInput.max = CONFIG.LINE_SPACING.MAX.toString();
     this.lineSpacingInput.step = CONFIG.LINE_SPACING.STEP.toString();
@@ -567,6 +576,7 @@ export class SettingsDrawer {
 
     this.letterSpacingInput = document.createElement("input");
     this.letterSpacingInput.type = "range";
+    this.letterSpacingInput.dataset.testid = "letter-spacing-input";
     this.letterSpacingInput.min = CONFIG.LETTER_SPACING.MIN.toString();
     this.letterSpacingInput.max = CONFIG.LETTER_SPACING.MAX.toString();
     this.letterSpacingInput.value = this.state.letterSpacing.toString();
@@ -593,6 +603,7 @@ export class SettingsDrawer {
     this.maxWordsPerLineInput = document.createElement("input");
     this.maxWordsPerLineInput.type = "number";
     this.maxWordsPerLineInput.className = "settings-select";
+    this.maxWordsPerLineInput.dataset.testid = "max-words-input";
     this.maxWordsPerLineInput.min = CONFIG.MAX_WORDS_PER_LINE.MIN.toString();
     this.maxWordsPerLineInput.max = CONFIG.MAX_WORDS_PER_LINE.MAX.toString();
     this.maxWordsPerLineInput.value = this.state.maxWordsPerLine.toString();
@@ -620,6 +631,7 @@ export class SettingsDrawer {
 
     this.scrollSpeedInput = document.createElement("input");
     this.scrollSpeedInput.type = "range";
+    this.scrollSpeedInput.dataset.testid = "scroll-speed-input";
     this.scrollSpeedInput.min = CONFIG.SCROLL_SPEED.MIN.toString();
     this.scrollSpeedInput.max = CONFIG.SCROLL_SPEED.MAX.toString();
     this.scrollSpeedInput.step = CONFIG.SCROLL_SPEED.STEP.toString();
@@ -650,6 +662,7 @@ export class SettingsDrawer {
 
     this.scrollModeSelect = document.createElement("select");
     this.scrollModeSelect.className = "settings-select";
+    this.scrollModeSelect.dataset.testid = "scroll-mode-select";
 
     const scrollModes: { value: ScrollMode; label: string }[] = [
       { value: 'continuous', label: i18n.t('continuous') },
@@ -691,6 +704,7 @@ export class SettingsDrawer {
 
     this.rsvpSpeedInput = document.createElement("input");
     this.rsvpSpeedInput.type = "range";
+    this.rsvpSpeedInput.dataset.testid = "rsvp-speed-input";
     this.rsvpSpeedInput.min = CONFIG.RSVP_SPEED.MIN.toString();
     this.rsvpSpeedInput.max = CONFIG.RSVP_SPEED.MAX.toString();
     this.rsvpSpeedInput.step = CONFIG.RSVP_SPEED.STEP.toString();
@@ -721,6 +735,7 @@ export class SettingsDrawer {
 
     const textDirSelect = document.createElement("select");
     textDirSelect.className = "settings-select";
+    textDirSelect.dataset.testid = "text-direction-select";
 
     const textDirections: { value: TextDirection; label: string }[] = [
       { value: 'auto', label: i18n.t('autoDetect') },
@@ -759,6 +774,7 @@ export class SettingsDrawer {
 
     const languageSelect = document.createElement("select");
     languageSelect.className = "settings-select";
+    languageSelect.dataset.testid = "language-select";
 
     i18n.getAvailableLocales().forEach((locale) => {
       const option = document.createElement("option");

@@ -13,6 +13,7 @@ export class HelpModal {
   constructor(container: HTMLElement) {
     this.overlay = document.createElement("div");
     this.overlay.className = "help-modal-overlay";
+    this.overlay.dataset.testid = "help-modal";
     this.overlay.setAttribute("role", "dialog");
     this.overlay.setAttribute("aria-modal", "true");
     this.overlay.setAttribute("aria-labelledby", "help-modal-title");
@@ -69,6 +70,7 @@ export class HelpModal {
 
     const closeBtn = document.createElement("button");
     closeBtn.className = "help-modal-close";
+    closeBtn.dataset.action = "close-help";
     closeBtn.setAttribute("aria-label", i18n.t('close'));
     closeBtn.textContent = "×";
 

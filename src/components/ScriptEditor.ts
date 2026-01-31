@@ -34,6 +34,7 @@ export class ScriptEditor {
     // Create overlay
     this.overlay = document.createElement("div");
     this.overlay.className = "script-editor-overlay";
+    this.overlay.dataset.testid = "script-editor";
     this.overlay.setAttribute("role", "dialog");
     this.overlay.setAttribute("aria-modal", "true");
     this.overlay.setAttribute("aria-labelledby", "editor-title");
@@ -45,6 +46,7 @@ export class ScriptEditor {
     this.closeBtn = document.createElement("button");
     this.closeBtn.className = "editor-close-btn";
     this.closeBtn.type = "button";
+    this.closeBtn.dataset.action = "close-editor";
     this.closeBtn.setAttribute("aria-label", i18n.t('close'));
     this.closeBtn.innerHTML = closeIcon;
     const closeText = document.createElement("span");
@@ -60,6 +62,7 @@ export class ScriptEditor {
     this.saveBtn = document.createElement("button");
     this.saveBtn.className = "editor-save-btn";
     this.saveBtn.type = "button";
+    this.saveBtn.dataset.action = "save-close";
     this.saveBtn.textContent = i18n.t('saveAndClose');
     this.saveBtn.addEventListener("click", () => this.saveAndClose());
 
@@ -79,6 +82,7 @@ export class ScriptEditor {
     this.importBtn = document.createElement("button");
     this.importBtn.className = "editor-toolbar-btn";
     this.importBtn.type = "button";
+    this.importBtn.dataset.action = "import";
     this.importBtn.textContent = i18n.t('importScript');
     this.importBtn.setAttribute("data-tooltip", i18n.t('tooltipImport'));
     this.importBtn.addEventListener("click", () => this.handleImport());
@@ -86,6 +90,7 @@ export class ScriptEditor {
     this.exportBtn = document.createElement("button");
     this.exportBtn.className = "editor-toolbar-btn";
     this.exportBtn.type = "button";
+    this.exportBtn.dataset.action = "export";
     this.exportBtn.textContent = i18n.t('exportScript');
     this.exportBtn.setAttribute("data-tooltip", i18n.t('tooltipExport'));
     this.exportBtn.addEventListener("click", () => this.handleExport());
@@ -93,6 +98,7 @@ export class ScriptEditor {
     this.exportSRTBtn = document.createElement("button");
     this.exportSRTBtn.className = "editor-toolbar-btn";
     this.exportSRTBtn.type = "button";
+    this.exportSRTBtn.dataset.action = "export-srt";
     this.exportSRTBtn.textContent = i18n.t('exportSRT');
     this.exportSRTBtn.setAttribute("data-tooltip", i18n.t('tooltipExportSRT'));
     this.exportSRTBtn.addEventListener("click", () => this.handleExportSRT());
@@ -104,6 +110,7 @@ export class ScriptEditor {
 
     this.textarea = document.createElement("textarea");
     this.textarea.className = "editor-textarea";
+    this.textarea.dataset.testid = "script-textarea";
     this.textarea.value = this.state.text;
     this.textarea.placeholder = i18n.t('script');
     this.textarea.addEventListener("input", () => {
@@ -112,6 +119,7 @@ export class ScriptEditor {
 
     this.charCount = document.createElement("div");
     this.charCount.className = "editor-char-count";
+    this.charCount.dataset.testid = "char-count";
     this.updateCharCount();
 
     textareaContainer.appendChild(this.textarea);

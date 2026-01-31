@@ -72,13 +72,17 @@ export class FloatingToolbar {
 
     // Create buttons
     this.editBtn = this.createButton("toolbar-btn toolbar-btn-edit toolbar-btn-icon", editIcon, i18n.t('edit'), i18n.t('tooltipEdit'));
+    this.editBtn.dataset.action = "edit";
     this.restartBtn = this.createButton("toolbar-btn toolbar-btn-restart toolbar-btn-icon", restartIcon, i18n.t('backToTop'), i18n.t('tooltipRestart'));
+    this.restartBtn.dataset.action = "restart";
     this.playPauseBtn = this.createButton("toolbar-btn toolbar-btn-play", "", i18n.t('play'), i18n.t('tooltipPlayPause'));
+    this.playPauseBtn.dataset.action = "toggle-play";
     this.playPauseBtn.textContent = i18n.t('play');
 
     // Duration display (created early since updateSpeedDisplay references it)
     this.durationDisplay = document.createElement("span");
     this.durationDisplay.className = "toolbar-duration";
+    this.durationDisplay.dataset.testid = "duration";
 
     // Speed control (shown for continuous mode)
     this.speedControl = document.createElement("div");
@@ -91,10 +95,12 @@ export class FloatingToolbar {
     this.speedMinusBtn.textContent = "−";
     this.speedMinusBtn.setAttribute("aria-label", i18n.t('decreaseSpeed'));
     this.speedMinusBtn.setAttribute("data-tooltip", i18n.t('tooltipDecreaseSpeed'));
+    this.speedMinusBtn.dataset.action = "speed-down";
     this.speedMinusBtn.type = "button";
 
     this.speedValue = document.createElement("span");
     this.speedValue.className = "speed-value";
+    this.speedValue.dataset.testid = "speed-value";
     this.speedValue.setAttribute("role", "status");
     this.speedValue.setAttribute("aria-live", "polite");
     this.speedValue.setAttribute("aria-atomic", "true");
@@ -109,6 +115,7 @@ export class FloatingToolbar {
     this.speedPlusBtn.textContent = "+";
     this.speedPlusBtn.setAttribute("aria-label", i18n.t('increaseSpeed'));
     this.speedPlusBtn.setAttribute("data-tooltip", i18n.t('tooltipIncreaseSpeed'));
+    this.speedPlusBtn.dataset.action = "speed-up";
     this.speedPlusBtn.type = "button";
 
     this.speedControl.appendChild(this.speedMinusBtn);
@@ -118,18 +125,24 @@ export class FloatingToolbar {
     // Page indicator (shown for paging mode)
     this.pageIndicator = document.createElement("span");
     this.pageIndicator.className = "toolbar-page-indicator";
+    this.pageIndicator.dataset.testid = "page-indicator";
     this.pageIndicator.style.display = "none";
     this.updatePageIndicator();
 
     // Scroll mode toggle button
     this.scrollModeBtn = this.createButton("toolbar-btn toolbar-btn-mode toolbar-btn-icon", this.getScrollModeIcon(), this.getScrollModeLabel(), this.getScrollModeTooltip());
+    this.scrollModeBtn.dataset.action = "cycle-scroll-mode";
 
     // Remote control button
     this.remoteBtn = this.createButton("toolbar-btn toolbar-btn-remote toolbar-btn-icon", remoteIcon, i18n.t('openRemote'), i18n.t('tooltipRemote'));
+    this.remoteBtn.dataset.action = "open-remote";
 
     this.fullscreenBtn = this.createButton("toolbar-btn toolbar-btn-fullscreen toolbar-btn-icon", fullscreenEnterIcon, i18n.t('toggleFullscreen'), i18n.t('tooltipFullscreen'));
+    this.fullscreenBtn.dataset.action = "fullscreen";
     this.settingsBtn = this.createButton("toolbar-btn toolbar-btn-settings toolbar-btn-icon", settingsIcon, i18n.t('settings'), i18n.t('tooltipSettings'));
+    this.settingsBtn.dataset.action = "settings";
     this.helpBtn = this.createButton("toolbar-btn toolbar-btn-help toolbar-btn-icon", helpIcon, i18n.t('helpKeyboardShortcuts'), i18n.t('tooltipHelp'));
+    this.helpBtn.dataset.action = "help";
 
     // Append all elements
     this.element.appendChild(this.editBtn);
