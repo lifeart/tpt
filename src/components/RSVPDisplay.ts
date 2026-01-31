@@ -384,12 +384,16 @@ export class RSVPDisplay {
   // Show the RSVP container
   show(): void {
     this.container.classList.add("active");
+    // Lock body scroll to prevent iOS background scrolling
+    document.body.style.overflow = "hidden";
   }
 
   // Hide the RSVP container
   hide(): void {
     this.container.classList.remove("active");
     this.pause();
+    // Restore body scroll
+    document.body.style.overflow = "";
   }
 
   // Update styles from state
