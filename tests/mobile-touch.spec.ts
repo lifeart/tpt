@@ -521,6 +521,130 @@ test.describe('Mobile UI - Help Modal', () => {
   });
 });
 
+test.describe('Mobile UI - RSVP Centering', () => {
+  test('RSVP word should be centered on mobile viewport', async ({ page }) => {
+    await page.setViewportSize(VIEWPORTS.iPhoneSE);
+    await setupApp(page, { scrollMode: 'rsvp' }, 'Hello');
+
+    await page.waitForSelector('.rsvp-container.active', { timeout: 5000 });
+    await page.waitForTimeout(200); // Wait for centering calculation
+
+    // Get centering data including ORP marker position
+    const data = await page.evaluate(() => {
+      const wordElement = document.querySelector('.rsvp-word') as HTMLElement;
+      const orpSpan = document.querySelector('.rsvp-word .orp') as HTMLElement;
+      const orpMarker = document.querySelector('.rsvp-orp-marker') as HTMLElement;
+
+      if (!wordElement || !orpSpan || !orpMarker) return null;
+
+      const viewportCenterX = window.innerWidth / 2;
+      const orpRect = orpSpan.getBoundingClientRect();
+      const orpCenterX = orpRect.left + orpRect.width / 2;
+      const markerRect = orpMarker.getBoundingClientRect();
+      const markerCenterX = markerRect.left + markerRect.width / 2;
+
+      return {
+        viewportWidth: window.innerWidth,
+        viewportCenterX,
+        orpCenterX,
+        markerCenterX,
+        orpOffsetFromScreenCenter: orpCenterX - viewportCenterX,
+        markerOffsetFromScreenCenter: markerCenterX - viewportCenterX,
+        orpToMarkerOffset: orpCenterX - markerCenterX,
+        wordText: wordElement.textContent,
+        orpChar: orpSpan.textContent,
+        transform: wordElement.style.transform,
+      };
+    });
+
+    console.log('Mobile RSVP centering:', data);
+
+    expect(data).not.toBeNull();
+    // ORP should be within 5px of screen center on mobile
+    expect(Math.abs(data!.orpOffsetFromScreenCenter)).toBeLessThan(5);
+    // ORP marker should also be centered
+    expect(Math.abs(data!.markerOffsetFromScreenCenter)).toBeLessThan(5);
+    // ORP character and marker should align
+    expect(Math.abs(data!.orpToMarkerOffset)).toBeLessThan(5);
+  });
+
+  test('RSVP word should be centered on very small screen', async ({ page }) => {
+    await page.setViewportSize(VIEWPORTS.iPhoneSESmall);
+    await setupApp(page, { scrollMode: 'rsvp' }, 'Programming');
+
+    await page.waitForSelector('.rsvp-container.active', { timeout: 5000 });
+    await page.waitForTimeout(200);
+
+    const data = await page.evaluate(() => {
+      const wordElement = document.querySelector('.rsvp-word') as HTMLElement;
+      const orpSpan = document.querySelector('.rsvp-word .orp') as HTMLElement;
+
+      if (!wordElement || !orpSpan) return null;
+
+      const viewportCenterX = window.innerWidth / 2;
+      const orpRect = orpSpan.getBoundingClientRect();
+      const orpCenterX = orpRect.left + orpRect.width / 2;
+
+      return {
+        viewportWidth: window.innerWidth,
+        viewportCenterX,
+        orpCenterX,
+        orpOffsetFromScreenCenter: orpCenterX - viewportCenterX,
+        wordText: wordElement.textContent,
+        orpChar: orpSpan.textContent,
+      };
+    });
+
+    console.log('Small screen RSVP centering:', data);
+
+    expect(data).not.toBeNull();
+    expect(Math.abs(data!.orpOffsetFromScreenCenter)).toBeLessThan(5);
+  });
+
+  test('RSVP centering works for various word lengths', async ({ page }) => {
+    await page.setViewportSize(VIEWPORTS.iPhoneSE);
+
+    // Test with different word lengths
+    const testWords = ['A', 'Hi', 'Cat', 'Hello', 'Testing', 'Programming', 'Extraordinary'];
+    const results: Array<{ word: string; offset: number; orpChar: string }> = [];
+
+    for (const word of testWords) {
+      await setupApp(page, { scrollMode: 'rsvp' }, word);
+      await page.waitForSelector('.rsvp-container.active', { timeout: 5000 });
+      await page.waitForTimeout(100);
+
+      const data = await page.evaluate(() => {
+        const wordElement = document.querySelector('.rsvp-word') as HTMLElement;
+        const orpSpan = document.querySelector('.rsvp-word .orp') as HTMLElement;
+        const orpMarker = document.querySelector('.rsvp-orp-marker') as HTMLElement;
+
+        if (!wordElement || !orpSpan || !orpMarker) return null;
+
+        const viewportCenterX = window.innerWidth / 2;
+        const orpRect = orpSpan.getBoundingClientRect();
+        const orpCenterX = orpRect.left + orpRect.width / 2;
+
+        return {
+          word: wordElement.textContent,
+          orpChar: orpSpan.textContent,
+          offset: orpCenterX - viewportCenterX,
+        };
+      });
+
+      if (data) {
+        results.push({ word: data.word!, offset: data.offset, orpChar: data.orpChar! });
+      }
+    }
+
+    console.log('RSVP centering for various word lengths:', results);
+
+    // All words should have ORP centered (within 5px tolerance)
+    for (const result of results) {
+      expect(Math.abs(result.offset)).toBeLessThan(5);
+    }
+  });
+});
+
 test.describe('Mobile UI - Script Editor', () => {
   test('editor should fill screen on mobile', async ({ page }) => {
     await page.setViewportSize(VIEWPORTS.iPhoneSE);

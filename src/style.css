@@ -2203,6 +2203,7 @@ button {
   gap: 2rem;
   padding: 2rem;
   z-index: 5;
+  overflow: hidden; /* Prevent horizontal scroll from translateX centering */
 }
 
 .rsvp-container.active {
