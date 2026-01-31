@@ -312,6 +312,19 @@ button {
   display: none; /* Chrome/Safari/Webkit */
 }
 
+/* Progress bar for teleprompter */
+.teleprompter-progress-bar {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  height: 3px;
+  background: var(--apple-accent);
+  width: 0%;
+  transition: width 0.15s ease-out;
+  z-index: 20;
+  opacity: 0.8;
+}
+
 /* Help Modal - Apple style */
 .help-modal-overlay {
   position: fixed;
@@ -1914,4 +1927,123 @@ button {
 
 .talent-status.synced {
   color: var(--apple-toggle-on);
+}
+
+/* ============================================
+   TOOLTIP SYSTEM
+   ============================================ */
+[data-tooltip] {
+  position: relative;
+}
+
+[data-tooltip]::before,
+[data-tooltip]::after {
+  position: absolute;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity var(--transition-fast), visibility var(--transition-fast), transform var(--transition-fast);
+  z-index: 1000;
+}
+
+/* Tooltip arrow */
+[data-tooltip]::before {
+  content: "";
+  border: 6px solid transparent;
+}
+
+/* Tooltip text bubble */
+[data-tooltip]::after {
+  content: attr(data-tooltip);
+  background: var(--apple-material-thick);
+  color: var(--apple-text-primary);
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  font-size: var(--font-xs);
+  font-weight: 500;
+  letter-spacing: -0.08px;
+  white-space: nowrap;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+
+/* Show tooltip on hover and focus */
+[data-tooltip]:hover::before,
+[data-tooltip]:hover::after,
+[data-tooltip]:focus-visible::before,
+[data-tooltip]:focus-visible::after {
+  opacity: 1;
+  visibility: visible;
+}
+
+/* Default: Tooltip above */
+[data-tooltip]::before {
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%) translateY(4px);
+  border-top-color: var(--apple-material-thick);
+  margin-bottom: -6px;
+}
+
+[data-tooltip]::after {
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%) translateY(-4px);
+  margin-bottom: 6px;
+}
+
+[data-tooltip]:hover::before,
+[data-tooltip]:focus-visible::before {
+  transform: translateX(-50%) translateY(0);
+}
+
+[data-tooltip]:hover::after,
+[data-tooltip]:focus-visible::after {
+  transform: translateX(-50%) translateY(-8px);
+}
+
+/* Tooltip below (for toolbar buttons) */
+[data-tooltip-position="bottom"]::before {
+  bottom: auto;
+  top: 100%;
+  border-top-color: transparent;
+  border-bottom-color: var(--apple-material-thick);
+  margin-bottom: 0;
+  margin-top: -6px;
+  transform: translateX(-50%) translateY(-4px);
+}
+
+[data-tooltip-position="bottom"]::after {
+  bottom: auto;
+  top: 100%;
+  margin-bottom: 0;
+  margin-top: 6px;
+  transform: translateX(-50%) translateY(4px);
+}
+
+[data-tooltip-position="bottom"]:hover::before,
+[data-tooltip-position="bottom"]:focus-visible::before {
+  transform: translateX(-50%) translateY(0);
+}
+
+[data-tooltip-position="bottom"]:hover::after,
+[data-tooltip-position="bottom"]:focus-visible::after {
+  transform: translateX(-50%) translateY(8px);
+}
+
+/* Disable tooltips on touch devices */
+@media (hover: none) {
+  [data-tooltip]::before,
+  [data-tooltip]::after {
+    display: none;
+  }
+}
+
+/* Disable tooltips in phone landscape (space constrained) */
+@media (max-width: 900px) and (max-height: 500px) {
+  [data-tooltip]::before,
+  [data-tooltip]::after {
+    display: none;
+  }
 }

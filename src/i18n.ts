@@ -199,6 +199,21 @@ export interface Translations {
 
   // Settings
   resetToDefaults: string;
+
+  // Button tooltips
+  tooltipEdit: string;
+  tooltipRestart: string;
+  tooltipPlayPause: string;
+  tooltipDecreaseSpeed: string;
+  tooltipIncreaseSpeed: string;
+  tooltipScrollMode: string;
+  tooltipRemote: string;
+  tooltipFullscreen: string;
+  tooltipSettings: string;
+  tooltipHelp: string;
+  tooltipImport: string;
+  tooltipExport: string;
+  tooltipExportSRT: string;
 }
 
 const translations: Record<Locale, Translations> = {
@@ -376,6 +391,21 @@ Press the Play button to start scrolling.`,
 
     // Settings
     resetToDefaults: 'Reset',
+
+    // Button tooltips
+    tooltipEdit: 'Edit your script (E)',
+    tooltipRestart: 'Return to beginning (R)',
+    tooltipPlayPause: 'Start or stop scrolling (Space)',
+    tooltipDecreaseSpeed: 'Slow down (←)',
+    tooltipIncreaseSpeed: 'Speed up (→)',
+    tooltipScrollMode: 'Switch scroll mode',
+    tooltipRemote: 'Open remote control',
+    tooltipFullscreen: 'Toggle fullscreen (F)',
+    tooltipSettings: 'Open settings (S)',
+    tooltipHelp: 'Keyboard shortcuts (?)',
+    tooltipImport: 'Load script from file',
+    tooltipExport: 'Save script to file',
+    tooltipExportSRT: 'Export as subtitles',
   },
 
   ru: {
@@ -552,6 +582,21 @@ Press the Play button to start scrolling.`,
 
     // Settings
     resetToDefaults: 'Сброс',
+
+    // Button tooltips
+    tooltipEdit: 'Редактировать текст (E)',
+    tooltipRestart: 'Вернуться в начало (R)',
+    tooltipPlayPause: 'Запустить или остановить (Пробел)',
+    tooltipDecreaseSpeed: 'Замедлить (←)',
+    tooltipIncreaseSpeed: 'Ускорить (→)',
+    tooltipScrollMode: 'Сменить режим прокрутки',
+    tooltipRemote: 'Открыть пульт управления',
+    tooltipFullscreen: 'Полноэкранный режим (F)',
+    tooltipSettings: 'Открыть настройки (S)',
+    tooltipHelp: 'Горячие клавиши (?)',
+    tooltipImport: 'Загрузить текст из файла',
+    tooltipExport: 'Сохранить текст в файл',
+    tooltipExportSRT: 'Экспорт субтитров',
   },
 
   fr: {
@@ -728,6 +773,21 @@ Appuyez sur le bouton Lecture pour commencer le défilement.`,
 
     // Settings
     resetToDefaults: 'Réinitialiser',
+
+    // Button tooltips
+    tooltipEdit: 'Modifier le script (E)',
+    tooltipRestart: 'Retour au début (R)',
+    tooltipPlayPause: 'Démarrer ou arrêter (Espace)',
+    tooltipDecreaseSpeed: 'Ralentir (←)',
+    tooltipIncreaseSpeed: 'Accélérer (→)',
+    tooltipScrollMode: 'Changer le mode de défilement',
+    tooltipRemote: 'Ouvrir la télécommande',
+    tooltipFullscreen: 'Plein écran (F)',
+    tooltipSettings: 'Ouvrir les paramètres (S)',
+    tooltipHelp: 'Raccourcis clavier (?)',
+    tooltipImport: 'Charger un script',
+    tooltipExport: 'Enregistrer le script',
+    tooltipExportSRT: 'Exporter en sous-titres',
   },
 
   es: {
@@ -904,6 +964,21 @@ Presiona el botón Reproducir para comenzar el desplazamiento.`,
 
     // Settings
     resetToDefaults: 'Restablecer',
+
+    // Button tooltips
+    tooltipEdit: 'Editar guión (E)',
+    tooltipRestart: 'Volver al inicio (R)',
+    tooltipPlayPause: 'Iniciar o detener (Espacio)',
+    tooltipDecreaseSpeed: 'Más lento (←)',
+    tooltipIncreaseSpeed: 'Más rápido (→)',
+    tooltipScrollMode: 'Cambiar modo de desplazamiento',
+    tooltipRemote: 'Abrir control remoto',
+    tooltipFullscreen: 'Pantalla completa (F)',
+    tooltipSettings: 'Abrir ajustes (S)',
+    tooltipHelp: 'Atajos de teclado (?)',
+    tooltipImport: 'Cargar guión desde archivo',
+    tooltipExport: 'Guardar guión en archivo',
+    tooltipExportSRT: 'Exportar como subtítulos',
   },
 
   de: {
@@ -1080,6 +1155,21 @@ Drücken Sie die Wiedergabe-Taste, um das Scrollen zu starten.`,
 
     // Settings
     resetToDefaults: 'Zurücksetzen',
+
+    // Button tooltips
+    tooltipEdit: 'Skript bearbeiten (E)',
+    tooltipRestart: 'Zurück zum Anfang (R)',
+    tooltipPlayPause: 'Starten oder stoppen (Leertaste)',
+    tooltipDecreaseSpeed: 'Langsamer (←)',
+    tooltipIncreaseSpeed: 'Schneller (→)',
+    tooltipScrollMode: 'Scroll-Modus wechseln',
+    tooltipRemote: 'Fernbedienung öffnen',
+    tooltipFullscreen: 'Vollbild umschalten (F)',
+    tooltipSettings: 'Einstellungen öffnen (S)',
+    tooltipHelp: 'Tastenkürzel (?)',
+    tooltipImport: 'Skript aus Datei laden',
+    tooltipExport: 'Skript in Datei speichern',
+    tooltipExportSRT: 'Als Untertitel exportieren',
   },
 };
 

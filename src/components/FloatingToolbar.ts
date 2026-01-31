@@ -68,9 +68,9 @@ export class FloatingToolbar {
     this.element.setAttribute("aria-label", "Main toolbar");
 
     // Create buttons
-    this.editBtn = this.createButton("toolbar-btn toolbar-btn-edit toolbar-btn-icon", editIcon, i18n.t('edit'));
-    this.restartBtn = this.createButton("toolbar-btn toolbar-btn-restart toolbar-btn-icon", restartIcon, i18n.t('backToTop'));
-    this.playPauseBtn = this.createButton("toolbar-btn toolbar-btn-play", "", i18n.t('play'));
+    this.editBtn = this.createButton("toolbar-btn toolbar-btn-edit toolbar-btn-icon", editIcon, i18n.t('edit'), i18n.t('tooltipEdit'));
+    this.restartBtn = this.createButton("toolbar-btn toolbar-btn-restart toolbar-btn-icon", restartIcon, i18n.t('backToTop'), i18n.t('tooltipRestart'));
+    this.playPauseBtn = this.createButton("toolbar-btn toolbar-btn-play", "", i18n.t('play'), i18n.t('tooltipPlayPause'));
     this.playPauseBtn.textContent = i18n.t('play');
 
     // Duration display (created early since updateSpeedDisplay references it)
@@ -87,6 +87,7 @@ export class FloatingToolbar {
     this.speedMinusBtn.className = "speed-btn";
     this.speedMinusBtn.textContent = "−";
     this.speedMinusBtn.setAttribute("aria-label", i18n.t('decreaseSpeed'));
+    this.speedMinusBtn.setAttribute("data-tooltip", i18n.t('tooltipDecreaseSpeed'));
     this.speedMinusBtn.type = "button";
 
     this.speedValue = document.createElement("span");
@@ -104,6 +105,7 @@ export class FloatingToolbar {
     this.speedPlusBtn.className = "speed-btn";
     this.speedPlusBtn.textContent = "+";
     this.speedPlusBtn.setAttribute("aria-label", i18n.t('increaseSpeed'));
+    this.speedPlusBtn.setAttribute("data-tooltip", i18n.t('tooltipIncreaseSpeed'));
     this.speedPlusBtn.type = "button";
 
     this.speedControl.appendChild(this.speedMinusBtn);
@@ -117,14 +119,14 @@ export class FloatingToolbar {
     this.updatePageIndicator();
 
     // Scroll mode toggle button
-    this.scrollModeBtn = this.createButton("toolbar-btn toolbar-btn-mode toolbar-btn-icon", this.getScrollModeIcon(), this.getScrollModeLabel());
+    this.scrollModeBtn = this.createButton("toolbar-btn toolbar-btn-mode toolbar-btn-icon", this.getScrollModeIcon(), this.getScrollModeLabel(), this.getScrollModeTooltip());
 
     // Remote control button
-    this.remoteBtn = this.createButton("toolbar-btn toolbar-btn-remote toolbar-btn-icon", remoteIcon, i18n.t('openRemote'));
+    this.remoteBtn = this.createButton("toolbar-btn toolbar-btn-remote toolbar-btn-icon", remoteIcon, i18n.t('openRemote'), i18n.t('tooltipRemote'));
 
-    this.fullscreenBtn = this.createButton("toolbar-btn toolbar-btn-fullscreen toolbar-btn-icon", fullscreenEnterIcon, i18n.t('toggleFullscreen'));
-    this.settingsBtn = this.createButton("toolbar-btn toolbar-btn-settings toolbar-btn-icon", settingsIcon, i18n.t('settings'));
-    this.helpBtn = this.createButton("toolbar-btn toolbar-btn-help toolbar-btn-icon", helpIcon, i18n.t('helpKeyboardShortcuts'));
+    this.fullscreenBtn = this.createButton("toolbar-btn toolbar-btn-fullscreen toolbar-btn-icon", fullscreenEnterIcon, i18n.t('toggleFullscreen'), i18n.t('tooltipFullscreen'));
+    this.settingsBtn = this.createButton("toolbar-btn toolbar-btn-settings toolbar-btn-icon", settingsIcon, i18n.t('settings'), i18n.t('tooltipSettings'));
+    this.helpBtn = this.createButton("toolbar-btn toolbar-btn-help toolbar-btn-icon", helpIcon, i18n.t('helpKeyboardShortcuts'), i18n.t('tooltipHelp'));
 
     // Append all elements
     this.element.appendChild(this.editBtn);
@@ -152,25 +154,38 @@ export class FloatingToolbar {
     });
   }
 
-  private createButton(className: string, iconHtml: string, ariaLabel: string): HTMLButtonElement {
+  private createButton(className: string, iconHtml: string, ariaLabel: string, tooltip?: string): HTMLButtonElement {
     const btn = document.createElement("button");
     btn.className = className;
     btn.type = "button";
     btn.innerHTML = iconHtml;
     btn.setAttribute("aria-label", ariaLabel);
+    if (tooltip) {
+      btn.setAttribute("data-tooltip", tooltip);
+    }
     return btn;
   }
 
   private updateLabels() {
     this.editBtn.setAttribute("aria-label", i18n.t('edit'));
+    this.editBtn.setAttribute("data-tooltip", i18n.t('tooltipEdit'));
     this.restartBtn.setAttribute("aria-label", i18n.t('backToTop'));
+    this.restartBtn.setAttribute("data-tooltip", i18n.t('tooltipRestart'));
+    this.playPauseBtn.setAttribute("data-tooltip", i18n.t('tooltipPlayPause'));
     this.speedMinusBtn.setAttribute("aria-label", i18n.t('decreaseSpeed'));
+    this.speedMinusBtn.setAttribute("data-tooltip", i18n.t('tooltipDecreaseSpeed'));
     this.speedPlusBtn.setAttribute("aria-label", i18n.t('increaseSpeed'));
+    this.speedPlusBtn.setAttribute("data-tooltip", i18n.t('tooltipIncreaseSpeed'));
     this.fullscreenBtn.setAttribute("aria-label", i18n.t('toggleFullscreen'));
+    this.fullscreenBtn.setAttribute("data-tooltip", i18n.t('tooltipFullscreen'));
     this.settingsBtn.setAttribute("aria-label", i18n.t('settings'));
+    this.settingsBtn.setAttribute("data-tooltip", i18n.t('tooltipSettings'));
     this.helpBtn.setAttribute("aria-label", i18n.t('helpKeyboardShortcuts'));
+    this.helpBtn.setAttribute("data-tooltip", i18n.t('tooltipHelp'));
     this.remoteBtn.setAttribute("aria-label", i18n.t('openRemote'));
+    this.remoteBtn.setAttribute("data-tooltip", i18n.t('tooltipRemote'));
     this.scrollModeBtn.setAttribute("aria-label", this.getScrollModeLabel());
+    this.scrollModeBtn.setAttribute("data-tooltip", this.getScrollModeTooltip());
     // Play/pause button text is managed by scrolling-toggled event
   }
 
@@ -190,6 +205,10 @@ export class FloatingToolbar {
     }
   }
 
+  private getScrollModeTooltip(): string {
+    return `${i18n.t('tooltipScrollMode')} (${this.getScrollModeLabel()})`;
+  }
+
   private cycleScrollMode() {
     const modes: ScrollMode[] = ['continuous', 'paging', 'voice'];
     const currentIndex = modes.indexOf(this.state.scrollMode);
@@ -201,9 +220,10 @@ export class FloatingToolbar {
   }
 
   private updateScrollModeUI() {
-    // Update button icon
+    // Update button icon and tooltip
     this.scrollModeBtn.innerHTML = this.getScrollModeIcon();
     this.scrollModeBtn.setAttribute("aria-label", this.getScrollModeLabel());
+    this.scrollModeBtn.setAttribute("data-tooltip", this.getScrollModeTooltip());
 
     // Show/hide speed control vs page indicator based on mode
     if (this.speedControl && this.pageIndicator) {

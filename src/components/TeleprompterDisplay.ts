@@ -12,6 +12,7 @@ export class TeleprompterDisplay {
   private telepromptText: HTMLDivElement;
   private telepromptTextInner: HTMLDivElement;
   private readingGuide: HTMLDivElement;
+  private progressBar: HTMLDivElement;
   private state: TeleprompterState;
   private animationFrameId: number | null = null;
   private lastTimestamp: number = 0;
@@ -36,6 +37,7 @@ export class TeleprompterDisplay {
   // Smooth scroll animation state
   private smoothScrollAnimationId: number | null = null;
   private targetTranslateY: number = 0;
+  private isManualNavigation: boolean = false; // Skip activeLineIndex override during manual nav
   // Paging mode state
   private totalPages: number = 1;
   // Inline editing state
@@ -87,6 +89,11 @@ export class TeleprompterDisplay {
     }
     this.element.appendChild(this.readingGuide);
 
+    // Create progress bar
+    this.progressBar = document.createElement("div");
+    this.progressBar.className = "teleprompter-progress-bar";
+    this.element.appendChild(this.progressBar);
+
     // Create countdown overlay (styles in CSS)
     this.countdownOverlay = document.createElement("div");
     this.countdownOverlay.className = "countdown-overlay";
@@ -117,6 +124,11 @@ export class TeleprompterDisplay {
 
       // Calculate scroll amount from wheel delta
       const scrollAmount = e.deltaY;
+
+      // Reset scriptEnded flag when scrolling up (away from end)
+      if (scrollAmount < 0 && this.state.scriptEnded) {
+        this.state.scriptEnded = false;
+      }
 
       // Update target translateY position
       const containerRect = this.telepromptText.getBoundingClientRect();
@@ -174,6 +186,10 @@ export class TeleprompterDisplay {
         return;
       }
       if (e.key === "ArrowUp" || e.key === "ArrowDown") {
+        // Don't handle arrow keys if typing in an input field
+        if (e.target instanceof HTMLTextAreaElement || e.target instanceof HTMLInputElement) {
+          return;
+        }
         if (ctrlOrCmd) {
           // Ctrl/Cmd + Up/Down: Line spacing
           if (e.key === "ArrowUp") {
@@ -221,16 +237,22 @@ export class TeleprompterDisplay {
               0,
               this.state.activeLineIndex - 1
             );
+            // Reset scriptEnded flag when navigating back from end
+            if (this.state.scriptEnded) {
+              this.state.scriptEnded = false;
+            }
           } else {
-            const lines = this.state.text.split("\n");
+            // Use splitTextIntoLines to get correct line count (respects maxWordsPerLine)
+            const lines = splitTextIntoLines(this.state.text, this.state.maxWordsPerLine);
             this.state.activeLineIndex = Math.min(
               lines.length - 1,
               this.state.activeLineIndex + 1
             );
           }
           // Scroll to the active line using transform-based scrolling
+          this.isManualNavigation = true; // Prevent updateActiveLine from overriding
           this.scrollToLine(this.state.activeLineIndex);
-          this.updateTelepromptText();
+          this.updateActiveLineVisual(); // Lightweight update, no DOM recreation
           // Sync voice engine position when manually navigating
           if (this.voiceEngine) {
             this.voiceEngine.setCurrentLine(this.state.activeLineIndex);
@@ -295,20 +317,80 @@ export class TeleprompterDisplay {
   }
 
   private jumpToLine(lineIndex: number) {
+    this.isManualNavigation = true; // Prevent updateActiveLine from overriding
+    // Reset scriptEnded flag when jumping to a different line
+    if (this.state.scriptEnded) {
+      this.state.scriptEnded = false;
+    }
     this.scrollToLine(lineIndex);
-    this.updateTelepromptText();
+    this.updateActiveLineVisual(); // Lightweight update, no DOM recreation
     // Sync voice engine position when manually navigating
     if (this.voiceEngine) {
       this.voiceEngine.setCurrentLine(lineIndex);
     }
   }
 
+  // Lightweight method to update active line visual without recreating DOM
+  private updateActiveLineVisual() {
+    // Remove active class from all lines
+    const currentActive = this.element.querySelector(".line.active-line");
+    if (currentActive) {
+      currentActive.classList.remove("active-line");
+    }
+    // Add active class to new line
+    const newActive = this.element.querySelector(`.line[data-index="${this.state.activeLineIndex}"]`);
+    if (newActive) {
+      newActive.classList.add("active-line");
+    }
+    // Update progress bar
+    this.updateProgressBar();
+  }
+
+  // Update the progress bar and page indicator based on current position
+  private updateProgressBar() {
+    const lines = splitTextIntoLines(this.state.text, this.state.maxWordsPerLine);
+    const totalLines = lines.length || 1;
+    const progress = ((this.state.activeLineIndex + 1) / totalLines) * 100;
+
+    // Update progress bar
+    if (this.progressBar) {
+      this.progressBar.style.width = `${Math.min(100, Math.max(0, progress))}%`;
+    }
+
+    // Calculate current page and dispatch page-changed event only when page changes
+    const linesPerPage = this.getLinesPerPage();
+    const currentPage = Math.floor(this.state.activeLineIndex / linesPerPage);
+    const totalPages = Math.max(1, Math.ceil(totalLines / linesPerPage));
+
+    // Only dispatch event if page changed (avoid unnecessary updates)
+    if (this.state.currentPage !== currentPage || this.totalPages !== totalPages) {
+      this.state.currentPage = currentPage;
+      this.totalPages = totalPages;
+      document.dispatchEvent(new CustomEvent<PageChangedDetail>("page-changed", {
+        detail: { currentPage, totalPages }
+      }));
+    }
+  }
+
+  // Get lines per page based on container height
+  private getLinesPerPage(): number {
+    if (!this.telepromptText) return 10; // Default fallback
+    const containerHeight = this.telepromptText.clientHeight;
+    const lineHeight = this.getLineHeight();
+    if (lineHeight <= 0) return 10;
+    return Math.max(1, Math.floor(containerHeight / lineHeight));
+  }
+
   // Scroll to center a specific line using transform-based scrolling
-  private scrollToLine(lineIndex: number, smooth: boolean = true) {
+  // Returns true if scroll was initiated, false if it failed (element not found)
+  private scrollToLine(lineIndex: number, smooth: boolean = true): boolean {
     const targetLine = this.element.querySelector(
       `.line[data-index="${lineIndex}"]`
     ) as HTMLElement;
-    if (!targetLine || !this.telepromptTextInner) return;
+    if (!targetLine || !this.telepromptTextInner) {
+      this.isManualNavigation = false; // Clear flag since no animation will run
+      return false;
+    }
 
     // Get the container's center position
     const containerRect = this.telepromptText.getBoundingClientRect();
@@ -334,7 +416,9 @@ export class TeleprompterDisplay {
     } else {
       this.currentTranslateY = this.targetTranslateY;
       this.applyTransform();
+      this.isManualNavigation = false; // Clear flag since no animation runs
     }
+    return true;
   }
 
   // Smooth scroll animation using requestAnimationFrame with easing
@@ -351,7 +435,12 @@ export class TeleprompterDisplay {
       if (Math.abs(distance) < CONFIG.SMOOTH_SCROLL_SNAP_THRESHOLD) {
         this.currentTranslateY = this.targetTranslateY;
         this.applyTransform();
-        this.updateActiveLine();
+        // Only update active line during auto-scroll, not manual navigation
+        // (manual navigation already set activeLineIndex and visual class)
+        if (!this.isManualNavigation) {
+          this.updateActiveLine();
+        }
+        this.isManualNavigation = false;
         this.smoothScrollAnimationId = null;
         return;
       }
@@ -359,7 +448,10 @@ export class TeleprompterDisplay {
       // Lerp towards target using configured easing factor
       this.currentTranslateY += distance * CONFIG.SMOOTH_SCROLL_EASING;
       this.applyTransform();
-      this.updateActiveLine();
+      // Only update active line during auto-scroll, not manual navigation
+      if (!this.isManualNavigation) {
+        this.updateActiveLine();
+      }
 
       // Continue animation
       this.smoothScrollAnimationId = requestAnimationFrame(animateSmoothScroll);
@@ -428,6 +520,9 @@ export class TeleprompterDisplay {
 
     // Replace all content at once (more efficient than clearing + appending)
     this.telepromptTextInner.replaceChildren(fragment);
+
+    // Update progress bar
+    this.updateProgressBar();
   }
 
 
@@ -914,8 +1009,8 @@ export class TeleprompterDisplay {
       }
     }
 
-    // Update the active line class
-    if (newActiveIndex >= 0 && newActiveIndex !== this.state.activeLineIndex) {
+    // Update the active line class (skip during manual navigation to avoid overriding)
+    if (!this.isManualNavigation && newActiveIndex >= 0 && newActiveIndex !== this.state.activeLineIndex) {
       // Remove active class from old line (use cached reference)
       const oldActiveLine = lines[this.state.activeLineIndex];
       if (oldActiveLine) {
@@ -927,6 +1022,8 @@ export class TeleprompterDisplay {
         newActiveLine.classList.add("active-line");
       }
       this.state.activeLineIndex = newActiveIndex;
+      // Update progress bar
+      this.updateProgressBar();
     }
   }
 
@@ -1029,7 +1126,7 @@ export class TeleprompterDisplay {
         // Scroll to the matched line
         this.state.activeLineIndex = lineIndex;
         this.scrollToLine(lineIndex);
-        this.updateTelepromptText();
+        this.updateActiveLineVisual(); // Lightweight update, no DOM recreation
       },
       onRecognizedText: (text: string) => {
         this.showRecognizedText(text);

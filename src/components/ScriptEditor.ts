@@ -80,18 +80,21 @@ export class ScriptEditor {
     this.importBtn.className = "editor-toolbar-btn";
     this.importBtn.type = "button";
     this.importBtn.textContent = i18n.t('importScript');
+    this.importBtn.setAttribute("data-tooltip", i18n.t('tooltipImport'));
     this.importBtn.addEventListener("click", () => this.handleImport());
 
     this.exportBtn = document.createElement("button");
     this.exportBtn.className = "editor-toolbar-btn";
     this.exportBtn.type = "button";
     this.exportBtn.textContent = i18n.t('exportScript');
+    this.exportBtn.setAttribute("data-tooltip", i18n.t('tooltipExport'));
     this.exportBtn.addEventListener("click", () => this.handleExport());
 
     this.exportSRTBtn = document.createElement("button");
     this.exportSRTBtn.className = "editor-toolbar-btn";
     this.exportSRTBtn.type = "button";
     this.exportSRTBtn.textContent = i18n.t('exportSRT');
+    this.exportSRTBtn.setAttribute("data-tooltip", i18n.t('tooltipExportSRT'));
     this.exportSRTBtn.addEventListener("click", () => this.handleExportSRT());
 
     editorToolbar.appendChild(this.importBtn);
@@ -135,8 +138,11 @@ export class ScriptEditor {
       closeText.textContent = i18n.t('close');
     }
     this.importBtn.textContent = i18n.t('importScript');
+    this.importBtn.setAttribute("data-tooltip", i18n.t('tooltipImport'));
     this.exportBtn.textContent = i18n.t('exportScript');
+    this.exportBtn.setAttribute("data-tooltip", i18n.t('tooltipExport'));
     this.exportSRTBtn.textContent = i18n.t('exportSRT');
+    this.exportSRTBtn.setAttribute("data-tooltip", i18n.t('tooltipExportSRT'));
     this.textarea.placeholder = i18n.t('script');
     this.updateCharCount();
   }
