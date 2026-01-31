@@ -78,15 +78,15 @@ test.describe('Mobile UI - Toolbar Layout', () => {
     }
   });
 
-  test('toolbar should center buttons on phone screens', async ({ page }) => {
+  test('toolbar should be scrollable on phone screens', async ({ page }) => {
     await page.setViewportSize(VIEWPORTS.iPhoneSE);
     await setupApp(page, {}, generateScript(20));
 
     const toolbar = page.locator('.floating-toolbar');
 
-    // Toolbar should center buttons
-    const justifyContent = await toolbar.evaluate((el) => getComputedStyle(el).justifyContent);
-    expect(justifyContent).toBe('center');
+    // Toolbar should allow horizontal scroll
+    const overflowX = await toolbar.evaluate((el) => getComputedStyle(el).overflowX);
+    expect(overflowX).toBe('auto');
 
     // Essential buttons should be visible
     const settingsBtn = page.locator('.toolbar-btn-settings');

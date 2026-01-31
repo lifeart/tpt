@@ -1314,12 +1314,20 @@ button {
 
   .floating-toolbar {
     gap: 6px;
-    padding: 8px;
-    padding-bottom: calc(8px + var(--safe-area-bottom));
-    padding-left: calc(8px + var(--safe-area-left));
-    padding-right: calc(8px + var(--safe-area-right));
+    padding: 10px 12px;
+    padding-bottom: calc(10px + var(--safe-area-bottom));
+    padding-left: calc(12px + var(--safe-area-left));
+    padding-right: calc(12px + var(--safe-area-right));
     flex-wrap: nowrap;
-    justify-content: center; /* Center buttons on mobile */
+    justify-content: flex-start;
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+
+  .floating-toolbar::-webkit-scrollbar {
+    display: none;
   }
 
   .toolbar-btn {
