@@ -43,6 +43,14 @@ export class TeleprompterDisplay {
   private lastWheelTime: number = 0;
   // Paging mode state
   private totalPages: number = 1;
+  // Touch event handling
+  private touchStartY: number = 0;
+  private touchStartX: number = 0;
+  private touchStartTime: number = 0;
+  private touchMoveY: number = 0;
+  private isTouchScrolling: boolean = false;
+  private touchStartTranslateY: number = 0;
+  private touchHandler: { start: (e: TouchEvent) => void; move: (e: TouchEvent) => void; end: (e: TouchEvent) => void } | null = null;
   // Inline editing state
   private inlineEditor: HTMLTextAreaElement | null = null;
   private editingLineIndex: number = -1;
@@ -115,6 +123,7 @@ export class TeleprompterDisplay {
     this.updateTelepromptText();
     this.setupKeyboardNavigation();
     this.setupWheelNavigation();
+    this.setupTouchNavigation();
     this.setupCustomEventListeners();
     this.setupInlineEditing();
     this.setupVoiceScroll();
@@ -185,6 +194,146 @@ export class TeleprompterDisplay {
 
     // Attach to main element so wheel works in all modes (including RSVP where telepromptText is hidden)
     this.element.addEventListener("wheel", this.wheelHandler, { passive: false });
+  }
+
+  private setupTouchNavigation() {
+    const SWIPE_THRESHOLD = 50; // Minimum distance for a swipe
+    const SWIPE_VELOCITY_THRESHOLD = 0.3; // Minimum velocity for a swipe (px/ms)
+    const TAP_THRESHOLD = 10; // Maximum movement for a tap
+
+    const handleTouchStart = (e: TouchEvent) => {
+      if (e.touches.length !== 1) return;
+
+      const touch = e.touches[0];
+      this.touchStartY = touch.clientY;
+      this.touchStartX = touch.clientX;
+      this.touchMoveY = touch.clientY;
+      this.touchStartTime = performance.now();
+      this.touchStartTranslateY = this.currentTranslateY;
+      this.isTouchScrolling = false;
+    };
+
+    const handleTouchMove = (e: TouchEvent) => {
+      if (e.touches.length !== 1) return;
+
+      const touch = e.touches[0];
+      const deltaY = touch.clientY - this.touchStartY;
+      const deltaX = touch.clientX - this.touchStartX;
+      this.touchMoveY = touch.clientY;
+
+      // Determine if this is a vertical scroll gesture
+      if (!this.isTouchScrolling && Math.abs(deltaY) > TAP_THRESHOLD) {
+        // Only start scrolling if vertical movement is dominant
+        if (Math.abs(deltaY) > Math.abs(deltaX)) {
+          this.isTouchScrolling = true;
+        }
+      }
+
+      // Handle RSVP mode - don't do drag scrolling
+      if (this.state.scrollMode === 'rsvp') {
+        return;
+      }
+
+      // Don't allow touch scrolling while auto-scrolling
+      if (this.state.isScrolling) {
+        return;
+      }
+
+      // Handle touch drag scrolling when paused
+      if (this.isTouchScrolling && this.telepromptTextInner) {
+        e.preventDefault();
+
+        // Calculate new position
+        const containerRect = this.telepromptText.getBoundingClientRect();
+        const totalHeight = this.telepromptTextInner.scrollHeight;
+        const maxTranslateY = 0;
+        const minTranslateY = -(totalHeight - containerRect.height);
+
+        const newTranslateY = this.touchStartTranslateY + deltaY;
+        this.currentTranslateY = Math.max(minTranslateY, Math.min(maxTranslateY, newTranslateY));
+        this.targetTranslateY = this.currentTranslateY;
+        this.applyTransform();
+        this.updateActiveLine();
+      }
+    };
+
+    const handleTouchEnd = (_e: TouchEvent) => {
+      if (!this.isTouchScrolling) return;
+
+      const touchEndTime = performance.now();
+      const touchDuration = touchEndTime - this.touchStartTime;
+      const deltaY = this.touchMoveY - this.touchStartY;
+      const velocity = Math.abs(deltaY) / touchDuration;
+
+      // Handle RSVP mode - swipe to navigate words
+      if (this.state.scrollMode === 'rsvp' && this.rsvpDisplay) {
+        if (!this.rsvpDisplay.getIsPlaying()) {
+          if (Math.abs(deltaY) > SWIPE_THRESHOLD && velocity > SWIPE_VELOCITY_THRESHOLD) {
+            const currentIndex = this.rsvpDisplay.getCurrentIndex();
+            if (deltaY < 0) {
+              // Swipe up = next word
+              this.rsvpDisplay.goToWord(currentIndex + 1);
+            } else {
+              // Swipe down = previous word
+              this.rsvpDisplay.goToWord(currentIndex - 1);
+            }
+          }
+        }
+        this.isTouchScrolling = false;
+        return;
+      }
+
+      // Handle paging mode - swipe to change pages
+      if (this.state.scrollMode === 'paging') {
+        if (Math.abs(deltaY) > SWIPE_THRESHOLD && velocity > SWIPE_VELOCITY_THRESHOLD) {
+          if (deltaY < 0) {
+            // Swipe up = next page
+            this.advancePage(1);
+          } else {
+            // Swipe down = previous page
+            this.advancePage(-1);
+          }
+        }
+        this.isTouchScrolling = false;
+        return;
+      }
+
+      // For continuous/voice mode, add momentum scrolling
+      if (!this.state.isScrolling && this.telepromptTextInner) {
+        if (velocity > SWIPE_VELOCITY_THRESHOLD) {
+          // Apply momentum based on velocity
+          const momentum = deltaY * velocity * 2;
+          const containerRect = this.telepromptText.getBoundingClientRect();
+          const totalHeight = this.telepromptTextInner.scrollHeight;
+          const maxTranslateY = 0;
+          const minTranslateY = -(totalHeight - containerRect.height);
+
+          this.targetTranslateY = Math.max(
+            minTranslateY,
+            Math.min(maxTranslateY, this.currentTranslateY + momentum)
+          );
+          this.startSmoothScroll();
+        }
+
+        // Reset scriptEnded flag when scrolling up (away from end)
+        if (deltaY > 0 && this.state.scriptEnded) {
+          this.state.scriptEnded = false;
+        }
+      }
+
+      this.isTouchScrolling = false;
+    };
+
+    this.touchHandler = {
+      start: handleTouchStart,
+      move: handleTouchMove,
+      end: handleTouchEnd,
+    };
+
+    // Attach to main element for touch support in all modes
+    this.element.addEventListener("touchstart", handleTouchStart, { passive: true });
+    this.element.addEventListener("touchmove", handleTouchMove, { passive: false });
+    this.element.addEventListener("touchend", handleTouchEnd, { passive: true });
   }
 
   private setupKeyboardNavigation() {
@@ -1657,6 +1806,12 @@ export class TeleprompterDisplay {
     if (this.wheelHandler && this.element) {
       this.element.removeEventListener("wheel", this.wheelHandler);
       this.wheelHandler = null;
+    }
+    if (this.touchHandler && this.element) {
+      this.element.removeEventListener("touchstart", this.touchHandler.start);
+      this.element.removeEventListener("touchmove", this.touchHandler.move);
+      this.element.removeEventListener("touchend", this.touchHandler.end);
+      this.touchHandler = null;
     }
     if (this.scrollModeChangedHandler) {
       document.removeEventListener("scroll-mode-changed", this.scrollModeChangedHandler as EventListener);

@@ -36,6 +36,33 @@
   outline-offset: 2px;
 }
 
+/* Native app-like behavior - prevent zoom and selection */
+* {
+  -webkit-touch-callout: none; /* Disable callout on long press */
+}
+
+html {
+  touch-action: manipulation; /* Disable double-tap zoom while allowing pan/pinch */
+  -ms-touch-action: manipulation;
+  overscroll-behavior: none; /* Prevent pull-to-refresh and overscroll bounce */
+}
+
+body {
+  -webkit-user-select: none; /* Disable text selection by default */
+  user-select: none;
+  -webkit-text-size-adjust: 100%; /* Prevent font size adjustment on orientation change */
+  text-size-adjust: 100%;
+}
+
+/* Allow text selection in editable areas */
+textarea,
+input,
+.editor-textarea,
+.inline-editor {
+  -webkit-user-select: text;
+  user-select: text;
+}
+
 /* Base styles - Apple San Francisco font stack */
 :root {
   font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, sans-serif;
@@ -1271,6 +1298,8 @@ button {
     gap: var(--radius-sm);
     padding: 10px;
     padding-bottom: calc(10px + var(--safe-area-bottom));
+    flex-wrap: wrap;
+    justify-content: center;
   }
 
   .toolbar-btn {
@@ -1302,8 +1331,20 @@ button {
     font-size: 14px;
   }
 
-  /* Hide duration on small phones to save space */
+  /* Hide non-essential elements on phones to fit width */
   .toolbar-duration {
+    display: none;
+  }
+
+  .toolbar-page-indicator {
+    display: none;
+  }
+
+  .toolbar-btn-fullscreen {
+    display: none;
+  }
+
+  .toolbar-btn-remote {
     display: none;
   }
 
@@ -1322,6 +1363,70 @@ button {
 
   .drawer-content {
     padding: 4px 12px 12px;
+  }
+}
+
+/* Very small phones (iPhone SE, etc.) - < 390px */
+@media (max-width: 389px) {
+  :root {
+    --toolbar-height: 56px;
+  }
+
+  .floating-toolbar {
+    gap: 4px;
+    padding: 8px;
+    padding-bottom: calc(8px + var(--safe-area-bottom));
+  }
+
+  .toolbar-btn {
+    padding: 6px 10px;
+    min-height: 36px;
+    min-width: 36px;
+    border-radius: var(--radius-md);
+  }
+
+  .toolbar-btn-icon {
+    padding: 6px;
+    min-width: 36px;
+    border-radius: var(--radius-md);
+  }
+
+  .toolbar-btn-icon svg {
+    width: 18px;
+    height: 18px;
+  }
+
+  .toolbar-btn-play {
+    padding: 6px 14px;
+    min-width: 70px;
+    font-size: var(--font-xs);
+  }
+
+  .speed-control {
+    height: 36px;
+    padding: 3px;
+    border-radius: var(--radius-md);
+  }
+
+  .speed-control .speed-btn {
+    width: 28px;
+    height: 28px;
+    font-size: 14px;
+  }
+
+  .speed-control .speed-value {
+    min-width: 36px;
+    font-size: var(--font-xs);
+  }
+
+  /* Hide remote button on very small screens */
+  .toolbar-btn-remote {
+    display: none;
+  }
+
+  /* Hide fullscreen button on very small screens (not useful on mobile anyway) */
+  .toolbar-btn-fullscreen {
+    display: none;
   }
 }
 
@@ -1625,6 +1730,8 @@ button {
   .toolbar-btn {
     min-height: 44px;
     min-width: 44px;
+    /* Prevent buttons from shrinking below touch target */
+    flex-shrink: 0;
   }
 
   .speed-control .speed-btn {
@@ -1645,6 +1752,26 @@ button {
   .help-modal-close {
     min-width: 44px;
     min-height: 44px;
+  }
+
+  /* Improve touch feedback */
+  .toolbar-btn:active,
+  .speed-control .speed-btn:active {
+    transform: scale(0.92);
+    opacity: 0.8;
+  }
+}
+
+/* Touch-specific overrides for very small phones */
+@media (pointer: coarse) and (max-width: 389px) {
+  .toolbar-btn {
+    min-height: 40px;
+    min-width: 40px;
+  }
+
+  .speed-control .speed-btn {
+    min-width: 36px;
+    min-height: 36px;
   }
 }
 
