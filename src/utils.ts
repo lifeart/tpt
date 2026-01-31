@@ -218,7 +218,7 @@ export function parseHexColor(color: string): { r: number; g: number; b: number 
 }
 
 // Calculate relative luminance for WCAG contrast
-function getLuminance(hexColor: string): number {
+export function getLuminance(hexColor: string): number {
   const rgb = parseHexColor(hexColor);
   if (!rgb) {
     // Fallback: assume black for invalid colors

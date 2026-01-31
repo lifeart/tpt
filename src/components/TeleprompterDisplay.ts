@@ -2,7 +2,7 @@ import { CONFIG } from "../config";
 import { getFontFamily } from "../fonts";
 import type { TeleprompterState } from "../state";
 import type { PageChangedDetail, SafariDocument } from "../types";
-import { splitTextIntoLines, isRTL, parseHexColor } from "../utils";
+import { splitTextIntoLines, isRTL, parseHexColor, getLuminance } from "../utils";
 import { VoiceScrollEngine, isVoiceSupported } from "../voice-scroll";
 import { i18n } from "../i18n";
 import { RSVPDisplay } from "./RSVPDisplay";
@@ -363,6 +363,11 @@ export class TeleprompterDisplay {
     document.addEventListener("keydown", this.keydownHandler);
   }
 
+  /**
+   * Toggle a cue point marker on the specified line.
+   * Cue points are visual markers (●) that help navigate to important script sections.
+   * Press M to toggle, Shift+Arrow to jump between cue points.
+   */
   private toggleCuePoint(lineIndex: number) {
     if (this.state.cuePoints.has(lineIndex)) {
       this.state.cuePoints.delete(lineIndex);
@@ -1045,6 +1050,12 @@ export class TeleprompterDisplay {
         this.element.style.backgroundColor = bgColor;
       }
       this.element.classList.toggle("flipped", this.state.isFlipped);
+
+      // Set cue point color based on background luminance for visibility across all themes
+      const luminance = getLuminance(bgColor);
+      // Use dark orange for light backgrounds, bright orange for dark backgrounds
+      const cuePointColor = luminance > 0.4 ? '#c75400' : '#ff9f0a';
+      this.element.style.setProperty('--cue-point-color', cuePointColor);
     }
     // Update reading guide state and size
     if (this.readingGuide) {

@@ -159,7 +159,7 @@ body {
 .line {
   padding: 0.25rem 0;
   position: relative;
-  contain: content; /* Limit repaint area */
+  contain: layout style; /* Limit repaint area, but allow overflow for cue points */
   cursor: default;
 }
 
@@ -185,8 +185,9 @@ body {
   left: -2.5em;
   top: 50%;
   transform: translateY(-50%);
-  color: var(--apple-system-orange);
+  color: var(--cue-point-color, var(--apple-system-orange));
   font-size: 0.6em;
+  z-index: 2;
 }
 
 .active-line {
