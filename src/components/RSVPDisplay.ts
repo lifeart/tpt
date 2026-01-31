@@ -441,6 +441,8 @@ export class RSVPDisplay {
   // Clean up
   destroy(): void {
     this.pause();
+    // Restore body scroll in case RSVP was active
+    document.body.style.overflow = "";
     if (this.i18nUnsubscribe) {
       this.i18nUnsubscribe();
       this.i18nUnsubscribe = null;

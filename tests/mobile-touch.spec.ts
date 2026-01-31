@@ -18,26 +18,26 @@ const VIEWPORTS = {
 };
 
 test.describe('Mobile UI - Toolbar Layout', () => {
-  test('toolbar is scrollable and buttons accessible on iPhone SE (320px)', async ({ page }) => {
+  test('toolbar is scrollable on extra small devices (320px)', async ({ page }) => {
     await page.setViewportSize(VIEWPORTS.iPhoneSESmall);
     await setupApp(page, {}, generateScript(20));
 
     const toolbar = page.locator('.floating-toolbar');
     await expect(toolbar).toBeVisible();
 
-    // Toolbar should be horizontally scrollable
+    // Toolbar should allow horizontal scroll on extra small devices
     const overflowX = await toolbar.evaluate((el) => getComputedStyle(el).overflowX);
     expect(overflowX).toBe('auto');
 
-    // Essential buttons should exist in the DOM (may need scrolling to see)
+    // Essential buttons should exist and be accessible
     const playBtn = page.locator('.toolbar-btn-play');
-    await expect(playBtn).toBeAttached();
+    await expect(playBtn).toBeVisible();
 
     const settingsBtn = page.locator('.toolbar-btn-settings');
-    await expect(settingsBtn).toBeAttached();
+    await expect(settingsBtn).toBeVisible();
 
     const helpBtn = page.locator('.toolbar-btn-help');
-    await expect(helpBtn).toBeAttached();
+    await expect(helpBtn).toBeVisible();
   });
 
   test('toolbar buttons should not overlap on iPhone SE (375px)', async ({ page }) => {
@@ -78,17 +78,17 @@ test.describe('Mobile UI - Toolbar Layout', () => {
     }
   });
 
-  test('toolbar should be horizontally scrollable on phone screens', async ({ page }) => {
+  test('toolbar should center buttons on phone screens', async ({ page }) => {
     await page.setViewportSize(VIEWPORTS.iPhoneSE);
     await setupApp(page, {}, generateScript(20));
 
     const toolbar = page.locator('.floating-toolbar');
 
-    // Toolbar should have horizontal overflow
-    const overflowX = await toolbar.evaluate((el) => getComputedStyle(el).overflowX);
-    expect(overflowX).toBe('auto');
+    // Toolbar should center buttons
+    const justifyContent = await toolbar.evaluate((el) => getComputedStyle(el).justifyContent);
+    expect(justifyContent).toBe('center');
 
-    // Essential buttons should be visible (may need to scroll to see them all)
+    // Essential buttons should be visible
     const settingsBtn = page.locator('.toolbar-btn-settings');
     await expect(settingsBtn).toBeVisible();
 
@@ -494,9 +494,9 @@ test.describe('Mobile UI - Landscape Mode', () => {
     const justifyContent = await toolbar.evaluate((el) => getComputedStyle(el).justifyContent);
     expect(justifyContent).toBe('center');
 
-    // Toolbar should not have horizontal scroll in landscape
+    // Toolbar should not have horizontal scroll in landscape (overflow hidden clips content)
     const overflowX = await toolbar.evaluate((el) => getComputedStyle(el).overflowX);
-    expect(overflowX).toBe('visible');
+    expect(overflowX).toBe('hidden');
 
     // Get toolbar and button positions to verify centering
     const toolbarBox = await toolbar.boundingBox();
