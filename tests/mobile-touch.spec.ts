@@ -18,32 +18,26 @@ const VIEWPORTS = {
 };
 
 test.describe('Mobile UI - Toolbar Layout', () => {
-  test('toolbar buttons should not overlap on iPhone SE (320px)', async ({ page }) => {
+  test('toolbar is scrollable and buttons accessible on iPhone SE (320px)', async ({ page }) => {
     await page.setViewportSize(VIEWPORTS.iPhoneSESmall);
     await setupApp(page, {}, generateScript(20));
 
     const toolbar = page.locator('.floating-toolbar');
     await expect(toolbar).toBeVisible();
 
-    // Get all visible toolbar buttons
-    const buttons = page.locator('.toolbar-btn:visible');
-    const buttonCount = await buttons.count();
-    expect(buttonCount).toBeGreaterThan(0);
+    // Toolbar should be horizontally scrollable
+    const overflowX = await toolbar.evaluate((el) => getComputedStyle(el).overflowX);
+    expect(overflowX).toBe('auto');
 
-    // Check that buttons don't overflow the toolbar
-    const toolbarBox = await toolbar.boundingBox();
-    expect(toolbarBox).not.toBeNull();
+    // Essential buttons should exist in the DOM (may need scrolling to see)
+    const playBtn = page.locator('.toolbar-btn-play');
+    await expect(playBtn).toBeAttached();
 
-    // Check each visible button is within toolbar bounds
-    for (let i = 0; i < buttonCount; i++) {
-      const button = buttons.nth(i);
-      const buttonBox = await button.boundingBox();
-      if (buttonBox && toolbarBox) {
-        // Button should be within toolbar horizontal bounds (with some tolerance for padding)
-        expect(buttonBox.x).toBeGreaterThanOrEqual(toolbarBox.x - 5);
-        expect(buttonBox.x + buttonBox.width).toBeLessThanOrEqual(toolbarBox.x + toolbarBox.width + 5);
-      }
-    }
+    const settingsBtn = page.locator('.toolbar-btn-settings');
+    await expect(settingsBtn).toBeAttached();
+
+    const helpBtn = page.locator('.toolbar-btn-help');
+    await expect(helpBtn).toBeAttached();
   });
 
   test('toolbar buttons should not overlap on iPhone SE (375px)', async ({ page }) => {
@@ -84,18 +78,24 @@ test.describe('Mobile UI - Toolbar Layout', () => {
     }
   });
 
-  test('should hide non-essential buttons on phone screens', async ({ page }) => {
+  test('toolbar should be horizontally scrollable on phone screens', async ({ page }) => {
     await page.setViewportSize(VIEWPORTS.iPhoneSE);
     await setupApp(page, {}, generateScript(20));
 
-    // These buttons should be hidden on phone screens (< 768px)
-    const remoteBtn = page.locator('.toolbar-btn-remote');
-    await expect(remoteBtn).toBeHidden();
+    const toolbar = page.locator('.floating-toolbar');
 
-    const fullscreenBtn = page.locator('.toolbar-btn-fullscreen');
-    await expect(fullscreenBtn).toBeHidden();
+    // Toolbar should have horizontal overflow
+    const overflowX = await toolbar.evaluate((el) => getComputedStyle(el).overflowX);
+    expect(overflowX).toBe('auto');
 
-    // Duration should be hidden
+    // Essential buttons should be visible (may need to scroll to see them all)
+    const settingsBtn = page.locator('.toolbar-btn-settings');
+    await expect(settingsBtn).toBeVisible();
+
+    const helpBtn = page.locator('.toolbar-btn-help');
+    await expect(helpBtn).toBeVisible();
+
+    // Duration should still be hidden
     const duration = page.locator('.toolbar-duration');
     await expect(duration).toBeHidden();
   });

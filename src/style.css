@@ -1298,8 +1298,20 @@ button {
     gap: var(--radius-sm);
     padding: 10px;
     padding-bottom: calc(10px + var(--safe-area-bottom));
-    flex-wrap: wrap;
-    justify-content: center;
+    padding-left: calc(10px + var(--safe-area-left));
+    padding-right: calc(10px + var(--safe-area-right));
+    flex-wrap: nowrap;
+    justify-content: flex-start;
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none; /* Firefox */
+    -ms-overflow-style: none; /* IE/Edge */
+  }
+
+  /* Hide scrollbar but keep functionality */
+  .floating-toolbar::-webkit-scrollbar {
+    display: none;
   }
 
   .toolbar-btn {
@@ -1307,6 +1319,7 @@ button {
     font-size: var(--font-sm);
     border-radius: var(--radius-lg);
     min-height: 40px;
+    flex-shrink: 0;
   }
 
   .toolbar-btn-play {
@@ -1318,6 +1331,7 @@ button {
   .speed-control {
     height: 40px;
     border-radius: var(--radius-lg);
+    flex-shrink: 0;
   }
 
   .speed-control .speed-btn {
@@ -1331,21 +1345,21 @@ button {
     font-size: 14px;
   }
 
-  /* Hide non-essential elements on phones to fit width */
+  /* Show all buttons but let toolbar scroll horizontally */
   .toolbar-duration {
     display: none;
   }
 
   .toolbar-page-indicator {
-    display: none;
+    flex-shrink: 0;
   }
 
   .toolbar-btn-fullscreen {
-    display: none;
+    flex-shrink: 0;
   }
 
   .toolbar-btn-remote {
-    display: none;
+    flex-shrink: 0;
   }
 
   .settings-drawer {
