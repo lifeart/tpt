@@ -1313,26 +1313,39 @@ button {
   }
 
   .floating-toolbar {
-    gap: var(--radius-sm);
-    padding: 10px;
-    padding-bottom: calc(10px + var(--safe-area-bottom));
-    padding-left: calc(10px + var(--safe-area-left));
-    padding-right: calc(10px + var(--safe-area-right));
+    gap: 6px;
+    padding: 8px;
+    padding-bottom: calc(8px + var(--safe-area-bottom));
+    padding-left: calc(8px + var(--safe-area-left));
+    padding-right: calc(8px + var(--safe-area-right));
     flex-wrap: nowrap;
     justify-content: center; /* Center buttons on mobile */
   }
 
   .toolbar-btn {
-    padding: 8px 14px;
+    padding: 8px;
     font-size: var(--font-sm);
-    border-radius: var(--radius-lg);
-    min-height: 40px;
+    border-radius: var(--radius-md);
+    min-height: 36px;
+    min-width: 36px;
     flex-shrink: 0;
+  }
+
+  .toolbar-btn-icon {
+    padding: 8px;
+    min-width: 36px;
+    min-height: 36px;
+  }
+
+  .toolbar-btn-icon svg {
+    width: 18px;
+    height: 18px;
   }
 
   .toolbar-btn-play {
     padding: 8px;
-    min-width: 40px;
+    min-width: 36px;
+    min-height: 36px;
   }
 
   /* Show icon only on mobile for play button */
@@ -1344,21 +1357,28 @@ button {
     display: flex;
   }
 
+  .toolbar-btn-play .btn-icon svg {
+    width: 18px;
+    height: 18px;
+  }
+
   .speed-control {
-    height: 40px;
-    border-radius: var(--radius-lg);
+    height: 36px;
+    border-radius: var(--radius-md);
     flex-shrink: 0;
+    padding: 3px;
   }
 
   .speed-control .speed-btn {
-    width: 32px;
-    height: 32px;
+    width: 28px;
+    height: 28px;
     border-radius: var(--radius-round);
+    font-size: 14px;
   }
 
   .speed-control .speed-value {
-    min-width: 44px;
-    font-size: 14px;
+    min-width: 36px;
+    font-size: 12px;
   }
 
   /* Show all buttons but let toolbar scroll horizontally */
