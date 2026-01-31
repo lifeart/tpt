@@ -36,6 +36,12 @@ export interface PageChangedDetail {
   totalPages: number;
 }
 
+// Safari-specific fullscreen API (vendor-prefixed)
+export interface SafariDocument extends Document {
+  webkitFullscreenElement?: Element;
+  webkitExitFullscreen?: () => Promise<void>;
+}
+
 // Global event map declarations
 declare global {
   interface DocumentEventMap {

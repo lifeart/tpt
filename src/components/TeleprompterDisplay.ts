@@ -1,7 +1,7 @@
 import { CONFIG } from "../config";
 import { getFontFamily } from "../fonts";
 import type { TeleprompterState } from "../state";
-import type { PageChangedDetail } from "../types";
+import type { PageChangedDetail, SafariDocument } from "../types";
 import { splitTextIntoLines, isRTL, parseHexColor } from "../utils";
 import { VoiceScrollEngine, isVoiceSupported } from "../voice-scroll";
 import { i18n } from "../i18n";
@@ -46,6 +46,8 @@ export class TeleprompterDisplay {
   private voiceIndicator: HTMLDivElement | null = null;
   private recognizedTextDisplay: HTMLDivElement | null = null;
   private recognizedTextTimeout: number | null = null;
+  // Inline editing event handler (stored for cleanup)
+  private dblclickHandler: ((e: MouseEvent) => void) | null = null;
 
   constructor(container: HTMLElement, state: TeleprompterState) {
     this.state = state;
@@ -229,6 +231,10 @@ export class TeleprompterDisplay {
           // Scroll to the active line using transform-based scrolling
           this.scrollToLine(this.state.activeLineIndex);
           this.updateTelepromptText();
+          // Sync voice engine position when manually navigating
+          if (this.voiceEngine) {
+            this.voiceEngine.setCurrentLine(this.state.activeLineIndex);
+          }
         }
         e.preventDefault();
         return;
@@ -291,6 +297,10 @@ export class TeleprompterDisplay {
   private jumpToLine(lineIndex: number) {
     this.scrollToLine(lineIndex);
     this.updateTelepromptText();
+    // Sync voice engine position when manually navigating
+    if (this.voiceEngine) {
+      this.voiceEngine.setCurrentLine(lineIndex);
+    }
   }
 
   // Scroll to center a specific line using transform-based scrolling
@@ -338,7 +348,7 @@ export class TeleprompterDisplay {
       const distance = this.targetTranslateY - this.currentTranslateY;
 
       // If close enough to target, snap to it and stop
-      if (Math.abs(distance) < 0.5) {
+      if (Math.abs(distance) < CONFIG.SMOOTH_SCROLL_SNAP_THRESHOLD) {
         this.currentTranslateY = this.targetTranslateY;
         this.applyTransform();
         this.updateActiveLine();
@@ -346,8 +356,8 @@ export class TeleprompterDisplay {
         return;
       }
 
-      // Lerp towards target (0.15 = smooth easing factor)
-      this.currentTranslateY += distance * 0.15;
+      // Lerp towards target using configured easing factor
+      this.currentTranslateY += distance * CONFIG.SMOOTH_SCROLL_EASING;
       this.applyTransform();
       this.updateActiveLine();
 
@@ -492,10 +502,7 @@ export class TeleprompterDisplay {
       // Remove is-scrolling class to enable inline edit affordance
       this.element.classList.remove("is-scrolling");
       // Exit fullscreen (standard + Safari)
-      const doc = document as Document & {
-        webkitFullscreenElement?: Element;
-        webkitExitFullscreen?: () => Promise<void>;
-      };
+      const doc = document as SafariDocument;
       const isFullscreen = doc.fullscreenElement || doc.webkitFullscreenElement;
       if (isFullscreen) {
         const exitFullscreen = doc.exitFullscreen || doc.webkitExitFullscreen;
@@ -849,7 +856,7 @@ export class TeleprompterDisplay {
     if (this.readingGuide) {
       this.readingGuide.classList.toggle("enabled", this.state.readingGuideEnabled);
       // Set reading guide height based on current font size and line spacing
-      const guideHeight = this.state.fontSize * this.state.lineSpacing * 1.5; // ~1.5 lines
+      const guideHeight = this.state.fontSize * this.state.lineSpacing * CONFIG.READING_GUIDE_HEIGHT_MULTIPLIER;
       this.readingGuide.style.height = `${guideHeight}px`;
     }
     // Apply transform correctly without accumulation
@@ -977,8 +984,8 @@ export class TeleprompterDisplay {
   // ============================================
 
   private setupInlineEditing() {
-    // Double-click to edit a line
-    this.telepromptTextInner.addEventListener("dblclick", (e: MouseEvent) => {
+    // Double-click to edit a line (store handler for cleanup)
+    this.dblclickHandler = (e: MouseEvent) => {
       if (this.state.isScrolling) return; // Don't allow editing while scrolling
 
       const target = e.target as HTMLElement;
@@ -988,7 +995,8 @@ export class TeleprompterDisplay {
       if (lineIndex < 0) return;
 
       this.startInlineEdit(lineIndex, target);
-    });
+    };
+    this.telepromptTextInner.addEventListener("dblclick", this.dblclickHandler);
   }
 
   // ============================================
@@ -1027,7 +1035,8 @@ export class TeleprompterDisplay {
         this.showRecognizedText(text);
       },
       onConfidenceChange: (_confidence: number) => {
-        // Could show confidence indicator if desired
+        // TODO: Reserved for future use - could show confidence indicator
+        // (e.g., color coding based on recognition confidence)
       },
       onMicLevelChange: (level: number) => {
         // Update mic level bar
@@ -1131,7 +1140,11 @@ export class TeleprompterDisplay {
   private showRecognizedText(text: string) {
     if (!this.recognizedTextDisplay) return;
 
-    this.recognizedTextDisplay.textContent = text;
+    // Limit to last 6 words to prevent text from growing too long
+    const words = text.trim().split(/\s+/);
+    const displayText = words.length > 6 ? '...' + words.slice(-6).join(' ') : text;
+
+    this.recognizedTextDisplay.textContent = displayText;
     this.recognizedTextDisplay.classList.add("visible");
 
     // Clear previous timeout
@@ -1291,8 +1304,12 @@ export class TeleprompterDisplay {
       this.advancePageHandler = null;
     }
 
-    // Cleanup inline editor
+    // Cleanup inline editor and dblclick handler
     this.cleanupInlineEditor();
+    if (this.dblclickHandler && this.telepromptTextInner) {
+      this.telepromptTextInner.removeEventListener("dblclick", this.dblclickHandler);
+      this.dblclickHandler = null;
+    }
 
     // Cleanup voice engine
     if (this.voiceEngine) {

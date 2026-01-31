@@ -75,10 +75,18 @@ export function importScript(): Promise<string> {
       if (file) {
         const reader = new FileReader();
         reader.onload = () => resolve(reader.result as string);
-        reader.onerror = () => reject(reader.error);
+        reader.onerror = () => {
+          const error = reader.error;
+          if (error) {
+            // FileReader.error is always DOMException when present
+            reject(new Error(`Failed to read file: ${error.name} - ${error.message}`));
+          } else {
+            reject(new Error('Failed to read file: Unknown error'));
+          }
+        };
         reader.readAsText(file);
       } else {
-        reject(new Error('No file selected'));
+        reject(new Error('Import cancelled: No file selected'));
       }
     };
     // Handle cancel - onchange won't fire if no file selected
@@ -88,7 +96,7 @@ export function importScript(): Promise<string> {
       // Small delay to allow onchange to fire first if file was selected
       setTimeout(() => {
         if (!input.files?.length) {
-          reject(new Error('File selection cancelled'));
+          reject(new Error('Import cancelled: File dialog closed'));
         }
       }, 300);
     };

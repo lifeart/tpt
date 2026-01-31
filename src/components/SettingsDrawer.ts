@@ -4,7 +4,7 @@ import { i18n } from "../i18n";
 import type { Locale } from "../i18n";
 import type { TeleprompterState } from "../state";
 import type { ScrollMode, TextDirection } from "../types";
-import { formatLabel, getContrastRatio } from "../utils";
+import { formatLabel, getContrastRatio, normalizeHexColor } from "../utils";
 import { THEME_PRESETS, getContrastLevel } from "../themes";
 import { createFocusTrap, type FocusTrap } from "../focus-trap";
 
@@ -176,14 +176,23 @@ export class SettingsDrawer {
   }
 
   private renderDisplayTab(panel: HTMLDivElement) {
-    // Font Size
-    const fontSizeGroup = this.createSettingsGroup();
+    // Orchestrator method - delegates to helper methods for each control group
+    panel.appendChild(this.createFontSizeControl());
+    panel.appendChild(this.createColorsControl());
+    panel.appendChild(this.createFlipControlsGroup());
+    panel.appendChild(this.createThemePresetsControl());
+    panel.appendChild(this.createOverlayOpacityControl());
+    panel.appendChild(this.createHorizontalMarginControl());
+  }
+
+  private createFontSizeControl(): HTMLDivElement {
+    const group = this.createSettingsGroup();
     this.fontSizeLabel = document.createElement("label");
     this.fontSizeLabel.className = "settings-label";
     this.fontSizeLabel.textContent = formatLabel('fontSize', this.state.fontSize, 'px');
 
-    const fontSizeRow = document.createElement("div");
-    fontSizeRow.className = "settings-row";
+    const row = document.createElement("div");
+    row.className = "settings-row";
 
     this.fontSizeInput = document.createElement("input");
     this.fontSizeInput.type = "range";
@@ -196,240 +205,202 @@ export class SettingsDrawer {
       this.onStateChange();
     });
 
-    fontSizeRow.appendChild(this.fontSizeInput);
-    fontSizeGroup.appendChild(this.fontSizeLabel);
-    fontSizeGroup.appendChild(fontSizeRow);
-    panel.appendChild(fontSizeGroup);
+    row.appendChild(this.fontSizeInput);
+    group.appendChild(this.fontSizeLabel);
+    group.appendChild(row);
+    return group;
+  }
 
-    // Colors row
-    const colorsGroup = this.createSettingsGroup();
-    const colorsLabel = document.createElement("label");
-    colorsLabel.className = "settings-label";
-    colorsLabel.textContent = `${i18n.t('fontColor')} / ${i18n.t('backgroundColor')}`;
+  private createColorsControl(): HTMLDivElement {
+    const group = this.createSettingsGroup();
+    const label = document.createElement("label");
+    label.className = "settings-label";
+    label.textContent = `${i18n.t('fontColor')} / ${i18n.t('backgroundColor')}`;
 
-    const colorsRow = document.createElement("div");
-    colorsRow.className = "settings-color-row";
+    const row = document.createElement("div");
+    row.className = "settings-color-row";
 
     // Font color
-    const fontColorItem = document.createElement("div");
-    fontColorItem.className = "settings-color-item";
-    const fontColorLabel = document.createElement("label");
-    fontColorLabel.className = "sr-only";
-    fontColorLabel.textContent = i18n.t('fontColor');
-    const fontColorInput = document.createElement("input");
-    fontColorInput.type = "color";
-    fontColorInput.className = "settings-color-input";
-    fontColorInput.value = this.state.fontColor;
-    fontColorInput.id = "font-color-input";
-    fontColorLabel.htmlFor = "font-color-input";
-    fontColorInput.setAttribute("aria-label", i18n.t('fontColor'));
-    fontColorInput.addEventListener("change", () => {
-      this.state.fontColor = fontColorInput.value;
-      this.onStateChange();
-    });
-    fontColorItem.appendChild(fontColorLabel);
-    fontColorItem.appendChild(fontColorInput);
+    const fontColorItem = this.createColorInput(
+      "font-color-input",
+      i18n.t('fontColor'),
+      this.state.fontColor,
+      (value) => {
+        const validColor = normalizeHexColor(value);
+        if (validColor) {
+          this.state.fontColor = validColor;
+          this.onStateChange();
+          this.updateContrastIndicator();
+        }
+      }
+    );
 
     // Background color
-    const bgColorItem = document.createElement("div");
-    bgColorItem.className = "settings-color-item";
-    const bgColorLabel = document.createElement("label");
-    bgColorLabel.className = "sr-only";
-    bgColorLabel.textContent = i18n.t('backgroundColor');
-    const bgColorInput = document.createElement("input");
-    bgColorInput.type = "color";
-    bgColorInput.className = "settings-color-input";
-    bgColorInput.value = this.state.backgroundColor;
-    bgColorInput.id = "bg-color-input";
-    bgColorLabel.htmlFor = "bg-color-input";
-    bgColorInput.setAttribute("aria-label", i18n.t('backgroundColor'));
-    bgColorInput.addEventListener("change", () => {
-      this.state.backgroundColor = bgColorInput.value;
-      this.onStateChange();
+    const bgColorItem = this.createColorInput(
+      "bg-color-input",
+      i18n.t('backgroundColor'),
+      this.state.backgroundColor,
+      (value) => {
+        const validColor = normalizeHexColor(value);
+        if (validColor) {
+          this.state.backgroundColor = validColor;
+          this.onStateChange();
+          this.updateContrastIndicator();
+        }
+      }
+    );
+
+    row.appendChild(fontColorItem);
+    row.appendChild(bgColorItem);
+    group.appendChild(label);
+    group.appendChild(row);
+    return group;
+  }
+
+  private createColorInput(
+    id: string,
+    labelText: string,
+    initialValue: string,
+    onChange: (value: string) => void
+  ): HTMLDivElement {
+    const item = document.createElement("div");
+    item.className = "settings-color-item";
+
+    const label = document.createElement("label");
+    label.className = "sr-only";
+    label.textContent = labelText;
+    label.htmlFor = id;
+
+    const input = document.createElement("input");
+    input.type = "color";
+    input.className = "settings-color-input";
+    input.value = initialValue;
+    input.id = id;
+    input.setAttribute("aria-label", labelText);
+    input.addEventListener("change", () => onChange(input.value));
+
+    item.appendChild(label);
+    item.appendChild(input);
+    return item;
+  }
+
+  private createFlipControlsGroup(): HTMLDivElement {
+    const group = document.createElement("div");
+    group.className = "flip-controls-group";
+    group.setAttribute("role", "group");
+    group.setAttribute("aria-label", i18n.t('flipScreen'));
+
+    // Horizontal flip
+    group.appendChild(this.createToggleRow(
+      "flip-horizontal",
+      i18n.t('flipScreen'),
+      i18n.t('tipFlipMode'),
+      this.state.isFlipped,
+      (checked) => { this.state.isFlipped = checked; this.onStateChange(); }
+    ));
+
+    // Vertical flip
+    group.appendChild(this.createToggleRow(
+      "flip-vertical",
+      i18n.t('flipVertical'),
+      i18n.t('tipFlipVertical'),
+      this.state.isFlippedVertical,
+      (checked) => { this.state.isFlippedVertical = checked; this.onStateChange(); }
+    ));
+
+    // Reading guide
+    group.appendChild(this.createToggleRow(
+      "reading-guide",
+      i18n.t('readingGuide'),
+      i18n.t('readingGuideDescription'),
+      this.state.readingGuideEnabled,
+      (checked) => { this.state.readingGuideEnabled = checked; this.onStateChange(); }
+    ));
+
+    return group;
+  }
+
+  private createToggleRow(
+    idPrefix: string,
+    title: string,
+    subtitle: string,
+    initialChecked: boolean,
+    onChange: (checked: boolean) => void
+  ): HTMLDivElement {
+    const row = document.createElement("div");
+    row.className = "flip-control-row";
+
+    const labelContainer = document.createElement("div");
+    labelContainer.className = "flip-control-label";
+
+    const titleId = `${idPrefix}-title`;
+    const descId = `${idPrefix}-desc`;
+
+    const titleEl = document.createElement("span");
+    titleEl.className = "flip-control-title";
+    titleEl.id = titleId;
+    titleEl.textContent = title;
+
+    const subtitleEl = document.createElement("span");
+    subtitleEl.className = "flip-control-subtitle";
+    subtitleEl.id = descId;
+    subtitleEl.textContent = subtitle;
+
+    labelContainer.appendChild(titleEl);
+    labelContainer.appendChild(subtitleEl);
+
+    const toggle = document.createElement("label");
+    toggle.className = "toggle-switch";
+
+    const input = document.createElement("input");
+    input.type = "checkbox";
+    input.checked = initialChecked;
+    input.setAttribute("role", "switch");
+    input.setAttribute("aria-checked", String(initialChecked));
+    input.setAttribute("aria-labelledby", titleId);
+    input.setAttribute("aria-describedby", descId);
+    input.addEventListener("change", () => {
+      input.setAttribute("aria-checked", String(input.checked));
+      onChange(input.checked);
     });
-    bgColorItem.appendChild(bgColorLabel);
-    bgColorItem.appendChild(bgColorInput);
 
-    colorsRow.appendChild(fontColorItem);
-    colorsRow.appendChild(bgColorItem);
-    colorsGroup.appendChild(colorsLabel);
-    colorsGroup.appendChild(colorsRow);
-    panel.appendChild(colorsGroup);
+    const slider = document.createElement("span");
+    slider.className = "toggle-slider";
+    slider.setAttribute("aria-hidden", "true");
 
-    // Flip controls - Apple-style with full a11y
-    const flipGroup = document.createElement("div");
-    flipGroup.className = "flip-controls-group";
-    flipGroup.setAttribute("role", "group");
-    flipGroup.setAttribute("aria-label", i18n.t('flipScreen'));
+    toggle.appendChild(input);
+    toggle.appendChild(slider);
 
-    // Horizontal flip row
-    const flipRow = document.createElement("div");
-    flipRow.className = "flip-control-row";
+    row.appendChild(labelContainer);
+    row.appendChild(toggle);
+    return row;
+  }
 
-    const flipLabelContainer = document.createElement("div");
-    flipLabelContainer.className = "flip-control-label";
+  private createThemePresetsControl(): HTMLDivElement {
+    const group = this.createSettingsGroup();
+    const label = document.createElement("label");
+    label.className = "settings-label";
+    label.textContent = i18n.t('themePresets');
 
-    const flipTitleId = "flip-horizontal-title";
-    const flipDescId = "flip-horizontal-desc";
-
-    const flipTitle = document.createElement("span");
-    flipTitle.className = "flip-control-title";
-    flipTitle.id = flipTitleId;
-    flipTitle.textContent = i18n.t('flipScreen');
-
-    const flipSubtitle = document.createElement("span");
-    flipSubtitle.className = "flip-control-subtitle";
-    flipSubtitle.id = flipDescId;
-    flipSubtitle.textContent = i18n.t('tipFlipMode');
-
-    flipLabelContainer.appendChild(flipTitle);
-    flipLabelContainer.appendChild(flipSubtitle);
-
-    const flipToggle = document.createElement("label");
-    flipToggle.className = "toggle-switch";
-    const flipInput = document.createElement("input");
-    flipInput.type = "checkbox";
-    flipInput.checked = this.state.isFlipped;
-    flipInput.setAttribute("role", "switch");
-    flipInput.setAttribute("aria-checked", String(this.state.isFlipped));
-    flipInput.setAttribute("aria-labelledby", flipTitleId);
-    flipInput.setAttribute("aria-describedby", flipDescId);
-    flipInput.addEventListener("change", () => {
-      this.state.isFlipped = flipInput.checked;
-      flipInput.setAttribute("aria-checked", String(flipInput.checked));
-      this.onStateChange();
-    });
-    const flipSlider = document.createElement("span");
-    flipSlider.className = "toggle-slider";
-    flipSlider.setAttribute("aria-hidden", "true");
-    flipToggle.appendChild(flipInput);
-    flipToggle.appendChild(flipSlider);
-
-    flipRow.appendChild(flipLabelContainer);
-    flipRow.appendChild(flipToggle);
-    flipGroup.appendChild(flipRow);
-
-    // Vertical flip row
-    const flipVerticalRow = document.createElement("div");
-    flipVerticalRow.className = "flip-control-row";
-
-    const flipVerticalLabelContainer = document.createElement("div");
-    flipVerticalLabelContainer.className = "flip-control-label";
-
-    const flipVerticalTitleId = "flip-vertical-title";
-    const flipVerticalDescId = "flip-vertical-desc";
-
-    const flipVerticalTitle = document.createElement("span");
-    flipVerticalTitle.className = "flip-control-title";
-    flipVerticalTitle.id = flipVerticalTitleId;
-    flipVerticalTitle.textContent = i18n.t('flipVertical');
-
-    const flipVerticalSubtitle = document.createElement("span");
-    flipVerticalSubtitle.className = "flip-control-subtitle";
-    flipVerticalSubtitle.id = flipVerticalDescId;
-    flipVerticalSubtitle.textContent = i18n.t('tipFlipVertical');
-
-    flipVerticalLabelContainer.appendChild(flipVerticalTitle);
-    flipVerticalLabelContainer.appendChild(flipVerticalSubtitle);
-
-    const flipVerticalToggle = document.createElement("label");
-    flipVerticalToggle.className = "toggle-switch";
-    const flipVerticalInput = document.createElement("input");
-    flipVerticalInput.type = "checkbox";
-    flipVerticalInput.checked = this.state.isFlippedVertical;
-    flipVerticalInput.setAttribute("role", "switch");
-    flipVerticalInput.setAttribute("aria-checked", String(this.state.isFlippedVertical));
-    flipVerticalInput.setAttribute("aria-labelledby", flipVerticalTitleId);
-    flipVerticalInput.setAttribute("aria-describedby", flipVerticalDescId);
-    flipVerticalInput.addEventListener("change", () => {
-      this.state.isFlippedVertical = flipVerticalInput.checked;
-      flipVerticalInput.setAttribute("aria-checked", String(flipVerticalInput.checked));
-      this.onStateChange();
-    });
-    const flipVerticalSlider = document.createElement("span");
-    flipVerticalSlider.className = "toggle-slider";
-    flipVerticalSlider.setAttribute("aria-hidden", "true");
-    flipVerticalToggle.appendChild(flipVerticalInput);
-    flipVerticalToggle.appendChild(flipVerticalSlider);
-
-    flipVerticalRow.appendChild(flipVerticalLabelContainer);
-    flipVerticalRow.appendChild(flipVerticalToggle);
-    flipGroup.appendChild(flipVerticalRow);
-
-    // Reading guide row
-    const readingGuideRow = document.createElement("div");
-    readingGuideRow.className = "flip-control-row";
-
-    const readingGuideLabelContainer = document.createElement("div");
-    readingGuideLabelContainer.className = "flip-control-label";
-
-    const readingGuideTitleId = "reading-guide-title";
-    const readingGuideDescId = "reading-guide-desc";
-
-    const readingGuideTitle = document.createElement("span");
-    readingGuideTitle.className = "flip-control-title";
-    readingGuideTitle.id = readingGuideTitleId;
-    readingGuideTitle.textContent = i18n.t('readingGuide');
-
-    const readingGuideSubtitle = document.createElement("span");
-    readingGuideSubtitle.className = "flip-control-subtitle";
-    readingGuideSubtitle.id = readingGuideDescId;
-    readingGuideSubtitle.textContent = i18n.t('readingGuideDescription');
-
-    readingGuideLabelContainer.appendChild(readingGuideTitle);
-    readingGuideLabelContainer.appendChild(readingGuideSubtitle);
-
-    const readingGuideToggle = document.createElement("label");
-    readingGuideToggle.className = "toggle-switch";
-    const readingGuideInput = document.createElement("input");
-    readingGuideInput.type = "checkbox";
-    readingGuideInput.checked = this.state.readingGuideEnabled;
-    readingGuideInput.setAttribute("role", "switch");
-    readingGuideInput.setAttribute("aria-checked", String(this.state.readingGuideEnabled));
-    readingGuideInput.setAttribute("aria-labelledby", readingGuideTitleId);
-    readingGuideInput.setAttribute("aria-describedby", readingGuideDescId);
-    readingGuideInput.addEventListener("change", () => {
-      this.state.readingGuideEnabled = readingGuideInput.checked;
-      readingGuideInput.setAttribute("aria-checked", String(readingGuideInput.checked));
-      this.onStateChange();
-    });
-    const readingGuideSlider = document.createElement("span");
-    readingGuideSlider.className = "toggle-slider";
-    readingGuideSlider.setAttribute("aria-hidden", "true");
-    readingGuideToggle.appendChild(readingGuideInput);
-    readingGuideToggle.appendChild(readingGuideSlider);
-
-    readingGuideRow.appendChild(readingGuideLabelContainer);
-    readingGuideRow.appendChild(readingGuideToggle);
-    flipGroup.appendChild(readingGuideRow);
-
-    panel.appendChild(flipGroup);
-
-    // Theme presets
-    const themeGroup = this.createSettingsGroup();
-    const themeLabel = document.createElement("label");
-    themeLabel.className = "settings-label";
-    themeLabel.textContent = i18n.t('themePresets');
-
-    const themeSelect = document.createElement("select");
-    themeSelect.className = "settings-select";
+    const select = document.createElement("select");
+    select.className = "settings-select";
 
     // Add "Custom" option
     const customOption = document.createElement("option");
     customOption.value = "custom";
     customOption.textContent = "Custom";
     customOption.selected = true;
-    themeSelect.appendChild(customOption);
+    select.appendChild(customOption);
 
     THEME_PRESETS.forEach((theme) => {
       const option = document.createElement("option");
       option.value = theme.id;
       option.textContent = theme.name;
-      themeSelect.appendChild(option);
+      select.appendChild(option);
     });
 
-    themeSelect.addEventListener("change", () => {
-      const selectedTheme = THEME_PRESETS.find(t => t.id === themeSelect.value);
+    select.addEventListener("change", () => {
+      const selectedTheme = THEME_PRESETS.find(t => t.id === select.value);
       if (selectedTheme) {
         this.state.fontColor = selectedTheme.fg;
         this.state.backgroundColor = selectedTheme.bg;
@@ -438,22 +409,23 @@ export class SettingsDrawer {
       }
     });
 
-    const themeRow = document.createElement("div");
-    themeRow.className = "settings-row";
-    themeRow.appendChild(themeSelect);
+    const row = document.createElement("div");
+    row.className = "settings-row";
+    row.appendChild(select);
 
     // Contrast indicator
     this.contrastIndicator = document.createElement("span");
     this.contrastIndicator.className = "contrast-indicator";
     this.updateContrastIndicator();
 
-    themeGroup.appendChild(themeLabel);
-    themeGroup.appendChild(themeRow);
-    themeGroup.appendChild(this.contrastIndicator);
-    panel.appendChild(themeGroup);
+    group.appendChild(label);
+    group.appendChild(row);
+    group.appendChild(this.contrastIndicator);
+    return group;
+  }
 
-    // Overlay Opacity (for transparency mode)
-    const overlayGroup = this.createSettingsGroup();
+  private createOverlayOpacityControl(): HTMLDivElement {
+    const group = this.createSettingsGroup();
     this.overlayOpacityLabel = document.createElement("label");
     this.overlayOpacityLabel.className = "settings-label";
     this.overlayOpacityLabel.textContent = `${i18n.t('overlayOpacity')}: ${Math.round(this.state.overlayOpacity * 100)}%`;
@@ -470,22 +442,23 @@ export class SettingsDrawer {
       this.onStateChange();
     });
 
-    const overlayRow = document.createElement("div");
-    overlayRow.className = "settings-row";
-    overlayRow.appendChild(this.overlayOpacityInput);
+    const row = document.createElement("div");
+    row.className = "settings-row";
+    row.appendChild(this.overlayOpacityInput);
 
-    const overlayHint = document.createElement("span");
-    overlayHint.className = "flip-control-subtitle";
-    overlayHint.style.padding = "0 16px 12px";
-    overlayHint.textContent = i18n.t('overlayModeDescription');
+    const hint = document.createElement("span");
+    hint.className = "flip-control-subtitle";
+    hint.style.padding = "0 16px 12px";
+    hint.textContent = i18n.t('overlayModeDescription');
 
-    overlayGroup.appendChild(this.overlayOpacityLabel);
-    overlayGroup.appendChild(overlayRow);
-    overlayGroup.appendChild(overlayHint);
-    panel.appendChild(overlayGroup);
+    group.appendChild(this.overlayOpacityLabel);
+    group.appendChild(row);
+    group.appendChild(hint);
+    return group;
+  }
 
-    // Horizontal Margin
-    const marginGroup = this.createSettingsGroup();
+  private createHorizontalMarginControl(): HTMLDivElement {
+    const group = this.createSettingsGroup();
     this.horizontalMarginLabel = document.createElement("label");
     this.horizontalMarginLabel.className = "settings-label";
     this.horizontalMarginLabel.textContent = `${i18n.t('horizontalMargin')}: ${this.state.horizontalMargin}%`;
@@ -501,13 +474,13 @@ export class SettingsDrawer {
       this.onStateChange();
     });
 
-    const marginRow = document.createElement("div");
-    marginRow.className = "settings-row";
-    marginRow.appendChild(this.horizontalMarginInput);
+    const row = document.createElement("div");
+    row.className = "settings-row";
+    row.appendChild(this.horizontalMarginInput);
 
-    marginGroup.appendChild(this.horizontalMarginLabel);
-    marginGroup.appendChild(marginRow);
-    panel.appendChild(marginGroup);
+    group.appendChild(this.horizontalMarginLabel);
+    group.appendChild(row);
+    return group;
   }
 
   private updateContrastIndicator() {

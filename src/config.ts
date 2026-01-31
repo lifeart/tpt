@@ -16,4 +16,9 @@ export const CONFIG = {
   HORIZONTAL_MARGIN: { MIN: 0, MAX: 40, DEFAULT: 10 },
   PAGING_TRANSITION_DURATION: 400, // ms for page transitions
   PAGING_OVERLAP: 0.1, // 10% overlap between pages
+  // Smooth scroll animation settings
+  SMOOTH_SCROLL_EASING: 0.15, // Lerp factor for smooth scrolling
+  SMOOTH_SCROLL_SNAP_THRESHOLD: 0.5, // Distance threshold to snap to target
+  // Reading guide settings
+  READING_GUIDE_HEIGHT_MULTIPLIER: 1.5, // Multiplier for line height
 } as const;

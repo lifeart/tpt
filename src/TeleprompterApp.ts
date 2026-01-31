@@ -282,10 +282,13 @@ export class TeleprompterApp {
     if (!this.talentChannel) return;
 
     // Get current transform from display
-    const textInner = this.mainContainer?.querySelector('.teleprompt-text-inner') as HTMLElement;
-    const transform = textInner?.style.transform || '';
-    const translateYMatch = transform.match(/translateY\((-?[\d.]+)px\)/);
-    const translateY = translateYMatch ? parseFloat(translateYMatch[1]) : 0;
+    const textInner = this.mainContainer?.querySelector('.teleprompt-text-inner') as HTMLElement | null;
+    let translateY = 0;
+    if (textInner) {
+      const transform = textInner.style.transform || '';
+      const translateYMatch = transform.match(/translateY\((-?[\d.]+)px\)/);
+      translateY = translateYMatch ? parseFloat(translateYMatch[1]) : 0;
+    }
 
     this.talentChannel.postMessage({
       type: 'state',

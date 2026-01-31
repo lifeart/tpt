@@ -1,9 +1,15 @@
 // Voice-Follow Scrolling Engine
 // Uses Web Speech API for speech recognition with fuzzy word matching
 
+import { splitTextIntoLines } from "./utils";
+
 // Constants for voice recognition
 const VOICE_CONFIG = {
-  SEARCH_WINDOW_SIZE: 50, // Words to search forward from last match
+  SEARCH_WINDOW_FORWARD: 50, // Lines to search forward from last match
+  SEARCH_WINDOW_BACKWARD: 10, // Lines to search backward (for re-reads)
+  LOOKAHEAD_LINES: 3, // Lines to look ahead to compensate for speech recognition delay
+  MIN_PHRASE_WORDS: 2, // Minimum words for phrase matching
+  MIN_INTERIM_WORDS: 3, // Minimum words needed to scroll on interim results
   MAX_FUZZY_DISTANCE: 2, // Max Levenshtein distance for fuzzy matching
   MAX_RESTART_ATTEMPTS: 5, // Max consecutive restart attempts before giving up
   INITIAL_RESTART_DELAY: 500, // Initial delay before restart (ms)
@@ -127,20 +133,8 @@ export class VoiceScrollEngine {
   updateScript(text: string, maxWordsPerLine: number = 0) {
     this.wordIndex.clear();
 
-    // Split into lines (respecting maxWordsPerLine)
-    const inputLines = text.split('\n');
-    const lines: string[] = [];
-
-    inputLines.forEach(line => {
-      if (maxWordsPerLine > 0 && line.trim() !== '') {
-        const words = line.trim().split(/\s+/);
-        for (let i = 0; i < words.length; i += maxWordsPerLine) {
-          lines.push(words.slice(i, i + maxWordsPerLine).join(' '));
-        }
-      } else {
-        lines.push(line);
-      }
-    });
+    // Split into lines using shared utility
+    const lines = splitTextIntoLines(text, maxWordsPerLine);
 
     // Build index
     lines.forEach((line, lineIndex) => {
@@ -205,33 +199,41 @@ export class VoiceScrollEngine {
     };
 
     this.recognition.onend = () => {
-      // Auto-restart if still supposed to be listening
-      if (this.isListening) {
-        // Check if we've exceeded max restart attempts
-        if (this.restartAttempts >= VOICE_CONFIG.MAX_RESTART_ATTEMPTS) {
-          this.callbacks.onError('Voice recognition stopped after multiple failures. Please restart manually.');
-          this.isListening = false;
-          this.callbacks.onStatusChange(false);
-          return;
-        }
-
-        // Calculate backoff delay
-        const delay = this.getRestartDelay();
-        this.restartAttempts++;
-
-        // Schedule restart with backoff
-        this.restartTimeoutId = window.setTimeout(() => {
-          if (this.isListening && this.recognition) {
-            try {
-              this.recognition.start();
-            } catch (e) {
-              // Failed to restart, will try again on next onend
-            }
-          }
-        }, delay);
-      } else {
+      // Check if we've been stopped externally (race condition fix)
+      if (!this.isListening) {
         this.callbacks.onStatusChange(false);
+        return;
       }
+
+      // Auto-restart if still supposed to be listening
+      // Check if we've exceeded max restart attempts
+      if (this.restartAttempts >= VOICE_CONFIG.MAX_RESTART_ATTEMPTS) {
+        this.callbacks.onError('Voice recognition stopped after multiple failures. Please restart manually.');
+        this.isListening = false;
+        this.callbacks.onStatusChange(false);
+        return;
+      }
+
+      // Clear any pending restart timeout before scheduling a new one (race condition fix)
+      if (this.restartTimeoutId !== null) {
+        clearTimeout(this.restartTimeoutId);
+        this.restartTimeoutId = null;
+      }
+
+      // Calculate backoff delay
+      const delay = this.getRestartDelay();
+      this.restartAttempts++;
+
+      // Schedule restart with backoff
+      this.restartTimeoutId = window.setTimeout(() => {
+        if (this.isListening && this.recognition) {
+          try {
+            this.recognition.start();
+          } catch (e) {
+            // Failed to restart, will try again on next onend
+          }
+        }
+      }, delay);
     };
 
     this.recognition.onerror = (event: { error: string }) => {
@@ -277,41 +279,80 @@ export class VoiceScrollEngine {
   // Process recognition results
   private processResults(event: SpeechRecognitionEventType) {
     const result = event.results[event.resultIndex];
+    const transcript = result[0].transcript;
+    const wordCount = transcript.trim().split(/\s+/).length;
+
+    this.callbacks.onRecognizedText(transcript);
 
     if (result.isFinal) {
-      const transcript = result[0].transcript;
       const confidence = result[0].confidence;
-
-      this.callbacks.onRecognizedText(transcript);
       this.callbacks.onConfidenceChange(confidence);
 
-      // Find matching position in script
+      // Find matching position in script with lookahead
       const matchedLine = this.findBestMatch(transcript);
-      if (matchedLine !== null && matchedLine !== this.lastMatchedLine) {
-        this.lastMatchedLine = matchedLine;
-        this.callbacks.onScrollTo(matchedLine);
+      if (matchedLine !== null) {
+        // Add lookahead to compensate for recognition delay
+        const targetLine = Math.min(matchedLine + VOICE_CONFIG.LOOKAHEAD_LINES, this.getMaxLineIndex());
+        if (targetLine !== this.lastMatchedLine) {
+          this.lastMatchedLine = targetLine;
+          this.callbacks.onScrollTo(targetLine);
+        }
       }
     } else {
-      // Interim result - show preview
-      const transcript = result[0].transcript;
-      this.callbacks.onRecognizedText(transcript);
+      // Interim result - scroll if we have enough words for reliable matching
+      if (wordCount >= VOICE_CONFIG.MIN_INTERIM_WORDS) {
+        const matchedLine = this.findBestMatch(transcript);
+        if (matchedLine !== null) {
+          // Add lookahead to compensate for recognition delay
+          const targetLine = Math.min(matchedLine + VOICE_CONFIG.LOOKAHEAD_LINES, this.getMaxLineIndex());
+          // Only scroll forward on interim results (avoid jumping back)
+          if (targetLine > this.lastMatchedLine) {
+            this.lastMatchedLine = targetLine;
+            this.callbacks.onScrollTo(targetLine);
+          }
+        }
+      }
     }
   }
 
-  // Find best matching position in script
+  // Get the maximum line index in the script
+  private getMaxLineIndex(): number {
+    let maxLine = 0;
+    for (const positions of this.wordIndex.values()) {
+      for (const pos of positions) {
+        if (pos.lineIndex > maxLine) {
+          maxLine = pos.lineIndex;
+        }
+      }
+    }
+    return maxLine;
+  }
+
+  // Find best matching position in script using phrase matching
   private findBestMatch(transcript: string): number | null {
     const words = transcript.trim().split(/\s+/).map(normalizeWord).filter(w => w.length > 0);
     if (words.length === 0) return null;
 
+    // Search window includes both forward and backward from current position
+    const startSearch = Math.max(0, this.lastMatchedLine - VOICE_CONFIG.SEARCH_WINDOW_BACKWARD);
+    const endSearch = this.lastMatchedLine + VOICE_CONFIG.SEARCH_WINDOW_FORWARD;
+
     let bestLineIndex: number | null = null;
-    let bestScore = Infinity;
+    let bestScore = -1;
 
-    // Search forward from last matched position
-    const startSearch = Math.max(0, this.lastMatchedLine);
-    const endSearch = startSearch + VOICE_CONFIG.SEARCH_WINDOW_SIZE;
+    // Try phrase matching first (more reliable)
+    if (words.length >= VOICE_CONFIG.MIN_PHRASE_WORDS) {
+      const phraseMatch = this.findPhraseMatch(words, startSearch, endSearch);
+      if (phraseMatch !== null) {
+        return phraseMatch;
+      }
+    }
 
-    // Get all word positions within search window
+    // Fall back to single word matching with scoring
     for (const word of words) {
+      // Skip very short words (too common, unreliable)
+      if (word.length < 3) continue;
+
       const positions = this.wordIndex.get(word) || [];
 
       for (const pos of positions) {
@@ -320,31 +361,37 @@ export class VoiceScrollEngine {
           continue;
         }
 
-        // Prefer matches closer to current position
-        const distanceFromCurrent = Math.abs(pos.lineIndex - this.lastMatchedLine);
-        const score = distanceFromCurrent;
+        // Score based on: forward bias (prefer ahead), proximity to current
+        const distanceFromCurrent = pos.lineIndex - this.lastMatchedLine;
+        // Forward matches get bonus, backward matches get penalty
+        const forwardBonus = distanceFromCurrent >= 0 ? 10 : 0;
+        const proximityScore = 100 - Math.abs(distanceFromCurrent);
+        const score = forwardBonus + proximityScore;
 
-        if (score < bestScore) {
+        if (score > bestScore) {
           bestScore = score;
           bestLineIndex = pos.lineIndex;
         }
       }
 
       // Also try fuzzy matching for words not found exactly
-      if (positions.length === 0) {
+      if (positions.length === 0 && word.length >= 4) {
         for (const [indexedWord, indexedPositions] of this.wordIndex.entries()) {
           const distance = levenshtein(word, indexedWord);
-          // Allow up to MAX_FUZZY_DISTANCE character differences for words > 4 chars
+          // Allow up to MAX_FUZZY_DISTANCE character differences
           if (distance <= Math.min(VOICE_CONFIG.MAX_FUZZY_DISTANCE, Math.floor(word.length / 2))) {
             for (const pos of indexedPositions) {
               if (pos.lineIndex < startSearch || pos.lineIndex > endSearch) {
                 continue;
               }
 
-              const distanceFromCurrent = Math.abs(pos.lineIndex - this.lastMatchedLine);
-              const score = distanceFromCurrent + distance; // Penalize fuzzy matches
+              const distanceFromCurrent = pos.lineIndex - this.lastMatchedLine;
+              const forwardBonus = distanceFromCurrent >= 0 ? 10 : 0;
+              const proximityScore = 100 - Math.abs(distanceFromCurrent);
+              // Penalize fuzzy matches
+              const score = forwardBonus + proximityScore - (distance * 5);
 
-              if (score < bestScore) {
+              if (score > bestScore) {
                 bestScore = score;
                 bestLineIndex = pos.lineIndex;
               }
@@ -357,9 +404,76 @@ export class VoiceScrollEngine {
     return bestLineIndex;
   }
 
-  // Reset to beginning of script
-  reset() {
-    this.lastMatchedLine = 0;
+  // Find a matching phrase (sequence of words) in the script
+  private findPhraseMatch(words: string[], startSearch: number, endSearch: number): number | null {
+    // Build a map of lineIndex -> words on that line for efficient lookup
+    const lineWords = new Map<number, string[]>();
+
+    // Get words for each line in the search window
+    for (const [word, positions] of this.wordIndex.entries()) {
+      for (const pos of positions) {
+        if (pos.lineIndex >= startSearch && pos.lineIndex <= endSearch) {
+          if (!lineWords.has(pos.lineIndex)) {
+            lineWords.set(pos.lineIndex, []);
+          }
+          // Store at the correct word index position
+          const lineArr = lineWords.get(pos.lineIndex)!;
+          lineArr[pos.wordIndex] = word;
+        }
+      }
+    }
+
+    let bestLine: number | null = null;
+    let bestMatchCount = 0;
+
+    // For each line in the search window, count matching words
+    for (const [lineIndex, lineWordsArr] of lineWords.entries()) {
+      let matchCount = 0;
+      const lineWordsSet = new Set(lineWordsArr.filter(w => w));
+
+      for (const word of words) {
+        if (lineWordsSet.has(word)) {
+          matchCount++;
+        } else {
+          // Try fuzzy match
+          for (const lineWord of lineWordsSet) {
+            if (word.length >= 4 && lineWord.length >= 4) {
+              const dist = levenshtein(word, lineWord);
+              if (dist <= VOICE_CONFIG.MAX_FUZZY_DISTANCE) {
+                matchCount += 0.5; // Partial credit for fuzzy matches
+                break;
+              }
+            }
+          }
+        }
+      }
+
+      // Require at least 2 words to match for phrase matching
+      if (matchCount >= 2 && matchCount > bestMatchCount) {
+        bestMatchCount = matchCount;
+        bestLine = lineIndex;
+      } else if (matchCount === bestMatchCount && bestLine !== null) {
+        // Tie-breaker: prefer line closer to current position, with forward bias
+        const currentDist = Math.abs(lineIndex - this.lastMatchedLine);
+        const bestDist = Math.abs(bestLine - this.lastMatchedLine);
+        const forwardBias = lineIndex >= this.lastMatchedLine ? -0.5 : 0.5;
+        if (currentDist + forwardBias < bestDist) {
+          bestLine = lineIndex;
+        }
+      }
+    }
+
+    return bestLine;
+  }
+
+  // Reset to beginning of script or a specific line
+  reset(lineIndex: number = 0) {
+    this.lastMatchedLine = lineIndex;
+  }
+
+  // Update the current position (called when user manually navigates)
+  setCurrentLine(lineIndex: number) {
+    this.lastMatchedLine = lineIndex;
   }
 
   // Check if currently listening
