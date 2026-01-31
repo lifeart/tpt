@@ -11,6 +11,8 @@ import {
   pagesIcon,
   micIcon,
   rsvpIcon,
+  playIcon,
+  pauseIcon,
 } from "../icons";
 import { i18n } from "../i18n";
 import type { TeleprompterState } from "../state";
@@ -77,7 +79,7 @@ export class FloatingToolbar {
     this.restartBtn.dataset.action = "restart";
     this.playPauseBtn = this.createButton("toolbar-btn toolbar-btn-play", "", i18n.t('play'), i18n.t('tooltipPlayPause'));
     this.playPauseBtn.dataset.action = "toggle-play";
-    this.playPauseBtn.textContent = i18n.t('play');
+    this.updatePlayPauseButton('play');
 
     // Duration display (created early since updateSpeedDisplay references it)
     this.durationDisplay = document.createElement("span");
@@ -344,16 +346,16 @@ export class FloatingToolbar {
     // Listen for scrolling state changes
     this.scrollingToggledHandler = (e: CustomEvent<ScrollingToggledDetail>) => {
       if (e.detail.isCountingDown) {
-        this.playPauseBtn.textContent = i18n.t('cancel');
+        this.updatePlayPauseButton('cancel');
         this.playPauseBtn.classList.remove("playing");
         this.playPauseBtn.classList.add("countdown");
       } else if (e.detail.isScrolling) {
-        this.playPauseBtn.textContent = i18n.t('pause');
+        this.updatePlayPauseButton('pause');
         this.playPauseBtn.classList.add("playing");
         this.playPauseBtn.classList.remove("countdown");
         this.startAutoHide();
       } else {
-        this.playPauseBtn.textContent = i18n.t('play');
+        this.updatePlayPauseButton('play');
         this.playPauseBtn.classList.remove("playing", "countdown");
         this.stopAutoHide();
       }
@@ -406,6 +408,13 @@ export class FloatingToolbar {
     this.fullscreenBtn.innerHTML = isFullscreen
       ? fullscreenExitIcon
       : fullscreenEnterIcon;
+  }
+
+  private updatePlayPauseButton(state: 'play' | 'pause' | 'cancel') {
+    const icon = state === 'pause' ? pauseIcon : playIcon;
+    const text = i18n.t(state);
+    this.playPauseBtn.innerHTML = `<span class="btn-icon">${icon}</span><span class="btn-text">${text}</span>`;
+    this.playPauseBtn.setAttribute("aria-label", text);
   }
 
   private updateSpeedDisplay() {

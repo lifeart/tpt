@@ -655,6 +655,24 @@ button {
   font-weight: 600;
   letter-spacing: -0.4px;
   box-shadow: 0 2px 8px rgba(52, 199, 89, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+/* Play button internal structure */
+.toolbar-btn-play .btn-icon {
+  display: none; /* Hidden on desktop, shown on mobile */
+}
+
+.toolbar-btn-play .btn-icon svg {
+  width: 20px;
+  height: 20px;
+}
+
+.toolbar-btn-play .btn-text {
+  display: inline; /* Shown on desktop */
 }
 
 .toolbar-btn-play:hover {
@@ -1323,9 +1341,17 @@ button {
   }
 
   .toolbar-btn-play {
-    padding: 8px 20px;
-    min-width: 88px;
-    font-size: var(--font-sm);
+    padding: 8px;
+    min-width: 40px;
+  }
+
+  /* Show icon only on mobile for play button */
+  .toolbar-btn-play .btn-text {
+    display: none;
+  }
+
+  .toolbar-btn-play .btn-icon {
+    display: flex;
   }
 
   .speed-control {
@@ -1354,12 +1380,13 @@ button {
     flex-shrink: 0;
   }
 
+  /* Hide fullscreen and remote on mobile - not usable */
   .toolbar-btn-fullscreen {
-    flex-shrink: 0;
+    display: none;
   }
 
   .toolbar-btn-remote {
-    flex-shrink: 0;
+    display: none;
   }
 
   .settings-drawer {
@@ -1411,9 +1438,17 @@ button {
   }
 
   .toolbar-btn-play {
-    padding: 6px 14px;
-    min-width: 70px;
-    font-size: var(--font-xs);
+    padding: 6px;
+    min-width: 36px;
+  }
+
+  .toolbar-btn-play .btn-icon {
+    display: flex;
+  }
+
+  .toolbar-btn-play .btn-icon svg {
+    width: 18px;
+    height: 18px;
   }
 
   .speed-control {
@@ -1432,16 +1467,6 @@ button {
     min-width: 36px;
     font-size: var(--font-xs);
   }
-
-  /* Hide remote button on very small screens */
-  .toolbar-btn-remote {
-    display: none;
-  }
-
-  /* Hide fullscreen button on very small screens (not useful on mobile anyway) */
-  .toolbar-btn-fullscreen {
-    display: none;
-  }
 }
 
 /* Phone Landscape - < 900px width AND < 500px height */
@@ -1453,6 +1478,9 @@ button {
   .floating-toolbar {
     gap: var(--radius-xs);
     padding: var(--radius-sm);
+    padding-bottom: calc(var(--radius-sm) + var(--safe-area-bottom));
+    justify-content: center; /* Center buttons in landscape (override portrait flex-start) */
+    overflow: visible; /* No need for scroll in landscape (must override both x/y) */
   }
 
   .floating-toolbar.auto-hide {
@@ -1486,6 +1514,34 @@ button {
   /* Compact mode for phone landscape */
   .toolbar-btn-edit .btn-text,
   .toolbar-btn-settings .btn-text {
+    display: none;
+  }
+
+  /* Play button icon-only in landscape */
+  .toolbar-btn-play {
+    padding: 6px;
+    min-width: 36px;
+  }
+
+  .toolbar-btn-play .btn-text {
+    display: none;
+  }
+
+  .toolbar-btn-play .btn-icon {
+    display: flex;
+  }
+
+  .toolbar-btn-play .btn-icon svg {
+    width: 18px;
+    height: 18px;
+  }
+
+  /* Hide fullscreen and remote on mobile landscape - not usable */
+  .toolbar-btn-fullscreen {
+    display: none;
+  }
+
+  .toolbar-btn-remote {
     display: none;
   }
 

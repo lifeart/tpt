@@ -481,6 +481,76 @@ test.describe('Mobile UI - Landscape Mode', () => {
     const buttonCount = await buttons.count();
     expect(buttonCount).toBeGreaterThan(0);
   });
+
+  test('toolbar buttons should be centered in landscape mode', async ({ page }) => {
+    // iPhone in landscape
+    await page.setViewportSize({ width: 667, height: 375 });
+    await setupApp(page, {}, generateScript(20));
+
+    const toolbar = page.locator('.floating-toolbar');
+    await expect(toolbar).toBeVisible();
+
+    // Check toolbar uses center justification (not flex-start from portrait)
+    const justifyContent = await toolbar.evaluate((el) => getComputedStyle(el).justifyContent);
+    expect(justifyContent).toBe('center');
+
+    // Toolbar should not have horizontal scroll in landscape
+    const overflowX = await toolbar.evaluate((el) => getComputedStyle(el).overflowX);
+    expect(overflowX).toBe('visible');
+
+    // Get toolbar and button positions to verify centering
+    const toolbarBox = await toolbar.boundingBox();
+    const buttons = page.locator('.toolbar-btn:visible');
+    const buttonCount = await buttons.count();
+
+    if (toolbarBox && buttonCount > 0) {
+      // Get first and last button positions
+      const firstButton = await buttons.first().boundingBox();
+      const lastButton = await buttons.last().boundingBox();
+
+      if (firstButton && lastButton) {
+        const buttonsLeftEdge = firstButton.x;
+        const buttonsRightEdge = lastButton.x + lastButton.width;
+        const buttonsWidth = buttonsRightEdge - buttonsLeftEdge;
+        const buttonsCenterX = buttonsLeftEdge + buttonsWidth / 2;
+        const toolbarCenterX = toolbarBox.x + toolbarBox.width / 2;
+
+        // Buttons should be roughly centered (within 20px tolerance)
+        expect(Math.abs(buttonsCenterX - toolbarCenterX)).toBeLessThan(20);
+      }
+    }
+  });
+
+  test('fullscreen and remote buttons should be hidden on mobile', async ({ page }) => {
+    // iPhone in landscape
+    await page.setViewportSize({ width: 667, height: 375 });
+    await setupApp(page, {}, generateScript(20));
+
+    // Fullscreen button should be hidden on mobile
+    const fullscreenBtn = page.locator('.toolbar-btn-fullscreen');
+    await expect(fullscreenBtn).toBeHidden();
+
+    // Remote button should be hidden on mobile
+    const remoteBtn = page.locator('.toolbar-btn-remote');
+    await expect(remoteBtn).toBeHidden();
+  });
+
+  test('play button should show icon instead of text on mobile', async ({ page }) => {
+    await page.setViewportSize({ width: 667, height: 375 });
+    await setupApp(page, {}, generateScript(20));
+
+    const playBtn = page.locator('.toolbar-btn-play');
+    await expect(playBtn).toBeVisible();
+
+    // Icon should be visible
+    const icon = playBtn.locator('.btn-icon');
+    await expect(icon).toBeVisible();
+
+    // Text should be hidden
+    const text = playBtn.locator('.btn-text');
+    const textDisplay = await text.evaluate((el) => getComputedStyle(el).display);
+    expect(textDisplay).toBe('none');
+  });
 });
 
 test.describe('Mobile UI - Help Modal', () => {
