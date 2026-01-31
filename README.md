@@ -6,7 +6,7 @@ The best free teleprompter app for YouTubers, streamers, podcasters, and public 
 [![GitHub Stars](https://img.shields.io/github/stars/lifeart/tpt?style=for-the-badge&logo=github)](https://github.com/lifeart/tpt)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)](LICENSE)
 
-![Teleprompter App Screenshot](https://lifeart.github.io/tpt/screenshot.png)
+![Teleprompter App Screenshot](./public/screenshot.png)
 
 ---
 
