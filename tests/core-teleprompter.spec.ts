@@ -1,23 +1,15 @@
-import { test, expect, Page } from '@playwright/test';
+import { test, expect } from '@playwright/test';
+import {
+  setupApp,
+  generateScript,
+  togglePlay,
+  waitForCountdown,
+  getScrollPosition,
+  SELECTORS,
+} from './utils/test-helpers';
 
-// Helper to set up the app with specific settings
-async function setupApp(page: Page, settings: Record<string, unknown> = {}, script?: string) {
-  await page.addInitScript(({ settings, script }) => {
-    if (script) {
-      localStorage.setItem('tpt/script', script);
-    }
-    if (Object.keys(settings).length > 0) {
-      localStorage.setItem('tpt/settings', JSON.stringify(settings));
-    }
-  }, { settings, script });
-  await page.goto('/');
-  await page.waitForSelector('[data-testid="teleprompter-display"]', { timeout: 5000 });
-}
-
-// Helper to get multiline script for testing
-function getMultilineScript(lines: number = 20): string {
-  return Array.from({ length: lines }, (_, i) => `Line ${i + 1}: This is test content for the teleprompter.`).join('\n');
-}
+// Alias for backward compatibility
+const getMultilineScript = generateScript;
 
 test.describe('Core Teleprompter - Scroll Modes', () => {
   test.describe('Continuous Scroll Mode', () => {
