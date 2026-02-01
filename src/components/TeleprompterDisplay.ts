@@ -242,6 +242,11 @@ export class TeleprompterDisplay {
         return;
       }
 
+      // Handle voice mode - don't do drag scrolling when voice is active
+      if (this.state.scrollMode === 'voice' && this.voiceEngine?.isActive()) {
+        return;
+      }
+
       // Don't allow touch scrolling while auto-scrolling
       if (this.state.isScrolling) {
         return;
@@ -306,7 +311,13 @@ export class TeleprompterDisplay {
         return;
       }
 
-      // For continuous/voice mode, add momentum scrolling
+      // Skip momentum scrolling when voice mode is active (let voice handle scrolling)
+      if (this.state.scrollMode === 'voice' && this.voiceEngine?.isActive()) {
+        this.isTouchScrolling = false;
+        return;
+      }
+
+      // For continuous mode, add momentum scrolling
       if (!this.state.isScrolling && this.telepromptTextInner) {
         if (velocity > SWIPE_VELOCITY_THRESHOLD) {
           // Apply momentum based on velocity
