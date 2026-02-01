@@ -68,6 +68,8 @@ export class TeleprompterDisplay {
   private mobileIndicatorLeft: HTMLDivElement | null = null;
   private mobileIndicatorRight: HTMLDivElement | null = null;
   private isMobile: boolean = false;
+  private mobileMediaQuery: MediaQueryList | null = null;
+  private mobileMediaQueryHandler: ((e: MediaQueryListEvent) => void) | null = null;
 
   constructor(container: HTMLElement, state: TeleprompterState) {
     this.state = state;
@@ -243,7 +245,7 @@ export class TeleprompterDisplay {
       }
 
       // Handle voice mode - don't do drag scrolling when voice is active
-      if (this.state.scrollMode === 'voice' && this.voiceEngine?.isActive()) {
+      if (this.isVoiceModeActive()) {
         return;
       }
 
@@ -312,7 +314,7 @@ export class TeleprompterDisplay {
       }
 
       // Skip momentum scrolling when voice mode is active (let voice handle scrolling)
-      if (this.state.scrollMode === 'voice' && this.voiceEngine?.isActive()) {
+      if (this.isVoiceModeActive()) {
         this.isTouchScrolling = false;
         return;
       }
@@ -357,7 +359,8 @@ export class TeleprompterDisplay {
 
   private setupMobileIndicators() {
     // Check if mobile (viewport width <= 768px)
-    this.isMobile = window.matchMedia('(max-width: 768px)').matches;
+    this.mobileMediaQuery = window.matchMedia('(max-width: 768px)');
+    this.isMobile = this.mobileMediaQuery.matches;
 
     // Create fixed indicators that live outside the transform hierarchy
     this.mobileIndicatorLeft = document.createElement("div");
@@ -377,12 +380,12 @@ export class TeleprompterDisplay {
     // Update visibility based on mode and viewport
     this.updateMobileIndicators();
 
-    // Listen for viewport changes
-    const mediaQuery = window.matchMedia('(max-width: 768px)');
-    mediaQuery.addEventListener('change', (e) => {
+    // Listen for viewport changes (store handler for cleanup)
+    this.mobileMediaQueryHandler = (e: MediaQueryListEvent) => {
       this.isMobile = e.matches;
       this.updateMobileIndicators();
-    });
+    };
+    this.mobileMediaQuery.addEventListener('change', this.mobileMediaQueryHandler);
   }
 
   private updateMobileIndicators() {
@@ -393,6 +396,11 @@ export class TeleprompterDisplay {
 
     this.mobileIndicatorLeft.style.display = shouldShow ? 'flex' : 'none';
     this.mobileIndicatorRight.style.display = shouldShow ? 'flex' : 'none';
+  }
+
+  // Helper to check if voice mode is actively listening
+  private isVoiceModeActive(): boolean {
+    return this.state.scrollMode === 'voice' && (this.voiceEngine?.isActive() ?? false);
   }
 
   private setupKeyboardNavigation() {
@@ -1181,8 +1189,6 @@ export class TeleprompterDisplay {
         }
         // Hide RSVP mode
         this.hideRSVPMode();
-        // Update mobile indicators (show in non-RSVP modes)
-        this.updateMobileIndicators();
       } else if (this.state.scrollMode === 'voice') {
         // Stop continuous scroll if active
         this.stopContinuousScroll();
@@ -1192,8 +1198,6 @@ export class TeleprompterDisplay {
         }
         // Hide RSVP mode
         this.hideRSVPMode();
-        // Update mobile indicators (show in non-RSVP modes)
-        this.updateMobileIndicators();
       } else if (this.state.scrollMode === 'rsvp') {
         // Stop continuous scroll if active
         this.stopContinuousScroll();
@@ -1204,8 +1208,6 @@ export class TeleprompterDisplay {
         }
         // Show RSVP mode
         this.showRSVPMode();
-        // Update mobile indicators (hide in RSVP)
-        this.updateMobileIndicators();
       } else {
         // Continuous mode - stop voice if active and hide indicator
         this.stopVoiceMode();
@@ -1214,9 +1216,9 @@ export class TeleprompterDisplay {
         }
         // Hide RSVP mode
         this.hideRSVPMode();
-        // Update mobile indicators (show in non-RSVP modes)
-        this.updateMobileIndicators();
       }
+      // Update mobile indicators for all mode changes
+      this.updateMobileIndicators();
     };
     document.addEventListener("scroll-mode-changed", this.scrollModeChangedHandler as EventListener);
 
@@ -1932,6 +1934,13 @@ export class TeleprompterDisplay {
     if (this.smoothScrollAnimationId !== null) {
       cancelAnimationFrame(this.smoothScrollAnimationId);
       this.smoothScrollAnimationId = null;
+    }
+
+    // Cleanup mobile media query listener
+    if (this.mobileMediaQuery && this.mobileMediaQueryHandler) {
+      this.mobileMediaQuery.removeEventListener('change', this.mobileMediaQueryHandler);
+      this.mobileMediaQueryHandler = null;
+      this.mobileMediaQuery = null;
     }
 
     // Cleanup mobile indicators
