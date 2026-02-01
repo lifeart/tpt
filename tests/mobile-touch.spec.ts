@@ -18,26 +18,23 @@ const VIEWPORTS = {
 };
 
 test.describe('Mobile UI - Toolbar Layout', () => {
-  test('toolbar is scrollable on extra small devices (320px)', async ({ page }) => {
+  test('toolbar buttons centered on extra small devices (320px)', async ({ page }) => {
     await page.setViewportSize(VIEWPORTS.iPhoneSESmall);
     await setupApp(page, {}, generateScript(20));
 
     const toolbar = page.locator('.floating-toolbar');
     await expect(toolbar).toBeVisible();
 
-    // Toolbar should allow horizontal scroll on extra small devices
-    const overflowX = await toolbar.evaluate((el) => getComputedStyle(el).overflowX);
-    expect(overflowX).toBe('auto');
-
-    // Essential buttons should exist and be accessible
+    // Essential buttons should be visible
     const playBtn = page.locator('.toolbar-btn-play');
     await expect(playBtn).toBeVisible();
 
     const settingsBtn = page.locator('.toolbar-btn-settings');
     await expect(settingsBtn).toBeVisible();
 
+    // Help hidden on portrait mobile
     const helpBtn = page.locator('.toolbar-btn-help');
-    await expect(helpBtn).toBeVisible();
+    await expect(helpBtn).toBeHidden();
   });
 
   test('toolbar buttons should not overlap on iPhone SE (375px)', async ({ page }) => {
@@ -78,33 +75,34 @@ test.describe('Mobile UI - Toolbar Layout', () => {
     }
   });
 
-  test('toolbar should be scrollable on phone screens', async ({ page }) => {
+  test('toolbar should center buttons on phone screens', async ({ page }) => {
     await page.setViewportSize(VIEWPORTS.iPhoneSE);
     await setupApp(page, {}, generateScript(20));
 
     const toolbar = page.locator('.floating-toolbar');
 
-    // Toolbar should allow horizontal scroll
-    const overflowX = await toolbar.evaluate((el) => getComputedStyle(el).overflowX);
-    expect(overflowX).toBe('auto');
+    // Toolbar should center buttons
+    const justifyContent = await toolbar.evaluate((el) => getComputedStyle(el).justifyContent);
+    expect(justifyContent).toBe('center');
 
     // Essential buttons should be visible
     const settingsBtn = page.locator('.toolbar-btn-settings');
     await expect(settingsBtn).toBeVisible();
 
+    // Help button hidden on portrait (accessible via settings)
     const helpBtn = page.locator('.toolbar-btn-help');
-    await expect(helpBtn).toBeVisible();
+    await expect(helpBtn).toBeHidden();
 
     // Duration should still be hidden
     const duration = page.locator('.toolbar-duration');
     await expect(duration).toBeHidden();
   });
 
-  test('should show all buttons on larger iPhone screens', async ({ page }) => {
+  test('should show essential buttons on larger iPhone screens', async ({ page }) => {
     await page.setViewportSize(VIEWPORTS.iPhone14);
     await setupApp(page, {}, generateScript(20));
 
-    // On 390px screens, buttons should be visible
+    // On 390px screens, essential buttons should be visible
     const editBtn = page.locator('.toolbar-btn-edit');
     await expect(editBtn).toBeVisible();
 
@@ -114,8 +112,9 @@ test.describe('Mobile UI - Toolbar Layout', () => {
     const settingsBtn = page.locator('.toolbar-btn-settings');
     await expect(settingsBtn).toBeVisible();
 
+    // Help hidden on portrait mobile (accessible via settings)
     const helpBtn = page.locator('.toolbar-btn-help');
-    await expect(helpBtn).toBeVisible();
+    await expect(helpBtn).toBeHidden();
   });
 
   test('toolbar should have adequate touch targets on mobile', async ({ page }) => {
@@ -554,8 +553,9 @@ test.describe('Mobile UI - Landscape Mode', () => {
 });
 
 test.describe('Mobile UI - Help Modal', () => {
-  test('help modal should be scrollable on mobile', async ({ page }) => {
-    await page.setViewportSize(VIEWPORTS.iPhoneSE);
+  test('help modal should be scrollable on mobile landscape', async ({ page }) => {
+    // Use landscape where help button is visible
+    await page.setViewportSize({ width: 667, height: 375 });
     await setupApp(page, {}, generateScript(20));
 
     await page.click('[data-action="help"]');
@@ -567,17 +567,17 @@ test.describe('Mobile UI - Help Modal', () => {
     expect(modalBox).not.toBeNull();
     if (modalBox) {
       // Modal should fit within viewport
-      expect(modalBox.height).toBeLessThanOrEqual(VIEWPORTS.iPhoneSE.height);
+      expect(modalBox.height).toBeLessThanOrEqual(375);
     }
 
     // Content should be scrollable if needed
     const content = page.locator('.help-modal-content');
-    // May or may not be scrollable depending on content, just check it exists
     expect(await content.isVisible()).toBe(true);
   });
 
   test('help modal close button should respond to click', async ({ page }) => {
-    await page.setViewportSize(VIEWPORTS.iPhoneSE);
+    // Use landscape where help button is visible
+    await page.setViewportSize({ width: 667, height: 375 });
     await setupApp(page, {}, generateScript(20));
 
     await page.click('[data-action="help"]');
@@ -776,5 +776,74 @@ test.describe('Mobile UI - Script Editor', () => {
     if (saveBox) {
       expect(saveBox.height).toBeGreaterThanOrEqual(MIN_TOUCH_TARGET);
     }
+  });
+});
+
+test.describe('Mobile UI - Drawer Help Button', () => {
+  test('help button should be visible in settings drawer on mobile', async ({ page }) => {
+    await page.setViewportSize(VIEWPORTS.iPhoneSE);
+    await setupApp(page, {}, generateScript(20));
+
+    // Open settings drawer
+    await page.click('[data-action="settings"]');
+    await page.waitForSelector('.settings-drawer.open', { timeout: 3000 });
+
+    // Help button should be visible in drawer
+    const helpBtn = page.locator('.drawer-help-btn');
+    await expect(helpBtn).toBeVisible();
+  });
+
+  test('drawer help button should open help modal', async ({ page }) => {
+    await page.setViewportSize(VIEWPORTS.iPhoneSE);
+    await setupApp(page, {}, generateScript(20));
+
+    // Open settings drawer
+    await page.click('[data-action="settings"]');
+    await page.waitForSelector('.settings-drawer.open', { timeout: 3000 });
+
+    // Click help button in drawer
+    const helpBtn = page.locator('.drawer-help-btn');
+    await helpBtn.click();
+
+    // Drawer should close and help modal should open
+    await page.waitForSelector('[data-testid="help-modal"].visible', { timeout: 3000 });
+    const helpModal = page.locator('[data-testid="help-modal"]');
+    await expect(helpModal).toBeVisible();
+  });
+
+  test('drawer help button should close drawer before opening help modal', async ({ page }) => {
+    await page.setViewportSize(VIEWPORTS.iPhoneSE);
+    await setupApp(page, {}, generateScript(20));
+
+    // Open settings drawer
+    await page.click('[data-action="settings"]');
+    await page.waitForSelector('.settings-drawer.open', { timeout: 3000 });
+
+    // Click help button in drawer
+    const helpBtn = page.locator('.drawer-help-btn');
+    await helpBtn.click();
+
+    // Wait for animations
+    await page.waitForTimeout(300);
+
+    // Drawer should be closed
+    const drawer = page.locator('.settings-drawer');
+    await expect(drawer).not.toHaveClass(/open/);
+  });
+
+  test('help should be accessible via drawer on portrait mobile where toolbar help is hidden', async ({ page }) => {
+    await page.setViewportSize(VIEWPORTS.iPhoneSE);
+    await setupApp(page, {}, generateScript(20));
+
+    // Verify toolbar help is hidden on portrait mobile
+    const toolbarHelp = page.locator('.toolbar-btn-help');
+    await expect(toolbarHelp).toBeHidden();
+
+    // But help is accessible through settings drawer
+    await page.click('[data-action="settings"]');
+    await page.waitForSelector('.settings-drawer.open', { timeout: 3000 });
+
+    const drawerHelp = page.locator('.drawer-help-btn');
+    await expect(drawerHelp).toBeVisible();
   });
 });

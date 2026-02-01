@@ -314,19 +314,31 @@ button {
   cursor: pointer;
 }
 
-/* Responsive layout for active line indicators */
+/* Mobile active line indicators - fixed positioned elements outside transform hierarchy */
+.mobile-active-indicator {
+  position: fixed;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 1em;
+  color: var(--apple-system-yellow);
+  z-index: 100;
+  pointer-events: none;
+  display: none;
+}
+
+.mobile-active-indicator-left {
+  left: 8px;
+}
+
+.mobile-active-indicator-right {
+  right: 8px;
+}
+
+/* Hide regular active line indicators on mobile (using mobile fixed indicators instead) */
 @media (max-width: 768px) {
   .active-line::before,
   .active-line::after {
-    font-size: 1em;
-  }
-
-  .active-line::before {
-    left: -1em;
-  }
-
-  .active-line::after {
-    right: -1em;
+    display: none;
   }
 }
 
@@ -1000,14 +1012,14 @@ button {
 .drawer-close-btn {
   display: block;
   width: 100%;
-  padding: 14px;
-  border-radius: var(--radius-lg);
+  padding: 10px 12px;
+  border-radius: var(--radius-md);
   border: none;
   background: var(--apple-elevated-bg);
   color: var(--apple-system-blue);
-  font-size: var(--font-md);
+  font-size: var(--font-sm);
   font-weight: 600;
-  letter-spacing: -0.4px;
+  letter-spacing: -0.3px;
   cursor: pointer;
   transition: background var(--transition-fast), transform var(--transition-press);
 }
@@ -1028,14 +1040,14 @@ button {
 /* Reset to defaults button */
 .drawer-reset-btn {
   flex: 1;
-  padding: 14px;
-  border-radius: var(--radius-lg);
+  padding: 10px 12px;
+  border-radius: var(--radius-md);
   border: none;
   background: var(--apple-fill-secondary);
   color: var(--apple-system-orange);
-  font-size: var(--font-md);
+  font-size: var(--font-sm);
   font-weight: 500;
-  letter-spacing: -0.4px;
+  letter-spacing: -0.3px;
   cursor: pointer;
   transition: background var(--transition-fast), transform var(--transition-press);
 }
@@ -1053,9 +1065,37 @@ button {
   outline-offset: 2px;
 }
 
-/* Bottom buttons container - close button takes more space */
+/* Help button in drawer */
+.drawer-help-btn {
+  flex: 1;
+  padding: 10px 12px;
+  border-radius: var(--radius-md);
+  border: none;
+  background: var(--apple-fill-secondary);
+  color: var(--apple-system-blue);
+  font-size: var(--font-sm);
+  font-weight: 500;
+  letter-spacing: -0.3px;
+  cursor: pointer;
+  transition: background var(--transition-fast), transform var(--transition-press);
+}
+
+.drawer-help-btn:hover {
+  background: var(--apple-fill-primary);
+}
+
+.drawer-help-btn:active {
+  transform: scale(0.98);
+}
+
+.drawer-help-btn:focus-visible {
+  outline: 2px solid var(--apple-system-blue);
+  outline-offset: 2px;
+}
+
+/* Bottom buttons container - all buttons equal width */
 .drawer-bottom-buttons .drawer-close-btn {
-  flex: 2;
+  flex: 1;
 }
 
 /* ============================================
@@ -1313,21 +1353,13 @@ button {
   }
 
   .floating-toolbar {
-    gap: 6px;
-    padding: 10px 12px;
+    gap: 8px;
+    padding: 10px 16px;
     padding-bottom: calc(10px + var(--safe-area-bottom));
-    padding-left: calc(12px + var(--safe-area-left));
-    padding-right: calc(12px + var(--safe-area-right));
+    padding-left: calc(16px + var(--safe-area-left));
+    padding-right: calc(16px + var(--safe-area-right));
     flex-wrap: nowrap;
-    justify-content: flex-start;
-    overflow-x: auto;
-    overflow-y: hidden;
-    -webkit-overflow-scrolling: touch;
-    scrollbar-width: none;
-  }
-
-  .floating-toolbar::-webkit-scrollbar {
-    display: none;
+    justify-content: center; /* Center buttons with help hidden */
   }
 
   .toolbar-btn {
@@ -1379,6 +1411,7 @@ button {
 
   .speed-control .speed-btn {
     width: 28px;
+    min-width: 28px;
     height: 28px;
     border-radius: var(--radius-round);
     font-size: 14px;
@@ -1394,16 +1427,22 @@ button {
     display: none;
   }
 
+  /* Hide page indicator on mobile - paging mode not optimized for touch */
   .toolbar-page-indicator {
-    flex-shrink: 0;
+    display: none !important;
   }
 
-  /* Hide fullscreen and remote on mobile - not usable */
+  /* Hide on mobile - not usable or accessible via settings */
   .toolbar-btn-fullscreen {
     display: none;
   }
 
   .toolbar-btn-remote {
+    display: none;
+  }
+
+  /* Hide help on mobile portrait - accessible via settings menu */
+  .toolbar-btn-help {
     display: none;
   }
 
@@ -1487,6 +1526,7 @@ button {
 
   .speed-control .speed-btn {
     width: 28px;
+    min-width: 28px;
     height: 28px;
     font-size: 14px;
   }
@@ -1575,6 +1615,11 @@ button {
     display: none;
   }
 
+  /* Show help button in landscape (more room available) */
+  .toolbar-btn-help {
+    display: flex;
+  }
+
   .speed-control {
     height: 36px;
     border-radius: var(--radius-md);
@@ -1583,6 +1628,7 @@ button {
 
   .speed-control .speed-btn {
     width: 30px;
+    min-width: 28px;
     height: 30px;
     border-radius: var(--radius-round);
     font-size: 16px;
@@ -1696,6 +1742,7 @@ button {
 .flip-controls-group {
   background: var(--apple-elevated-bg);
   border-radius: var(--radius-lg);
+  margin-bottom: 16px;
   overflow: hidden;
 }
 
@@ -1835,8 +1882,8 @@ button {
   }
 
   .speed-control .speed-btn {
-    min-width: 44px;
-    min-height: 44px;
+    min-width: 28px;
+    min-height: 28px;
   }
 
   .drawer-tab {

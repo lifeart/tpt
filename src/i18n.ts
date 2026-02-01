@@ -257,7 +257,7 @@ Press the Play button to start scrolling.`,
     linesPerSec: 'lines/sec',
 
     toggleFullscreen: 'Toggle Fullscreen',
-    helpKeyboardShortcuts: 'Help & Keyboard Shortcuts',
+    helpKeyboardShortcuts: 'Help',
 
     helpTitle: 'Teleprompter Help',
     keyboardShortcuts: 'Keyboard Shortcuts',
@@ -453,7 +453,7 @@ Press the Play button to start scrolling.`,
     linesPerSec: 'строк/сек',
 
     toggleFullscreen: 'Полноэкранный режим',
-    helpKeyboardShortcuts: 'Справка и горячие клавиши',
+    helpKeyboardShortcuts: 'Справка',
 
     helpTitle: 'Справка по телепромптеру',
     keyboardShortcuts: 'Горячие клавиши',
@@ -499,7 +499,7 @@ Press the Play button to start scrolling.`,
     fullscreenError: 'Ошибка при включении полноэкранного режима',
 
     edit: 'Редактировать',
-    editScript: 'Редактировать текст',
+    editScript: 'Изменить текст',
     saveAndClose: 'Сохранить',
     settings: 'Настройки',
     display: 'Отображение',
@@ -649,7 +649,7 @@ Appuyez sur le bouton Lecture pour commencer le défilement.`,
     linesPerSec: 'lignes/sec',
 
     toggleFullscreen: 'Plein écran',
-    helpKeyboardShortcuts: 'Aide et raccourcis clavier',
+    helpKeyboardShortcuts: 'Aide',
 
     helpTitle: 'Aide du téléprompteur',
     keyboardShortcuts: 'Raccourcis clavier',
@@ -845,7 +845,7 @@ Presiona el botón Reproducir para comenzar el desplazamiento.`,
     linesPerSec: 'líneas/seg',
 
     toggleFullscreen: 'Pantalla completa',
-    helpKeyboardShortcuts: 'Ayuda y atajos de teclado',
+    helpKeyboardShortcuts: 'Ayuda',
 
     helpTitle: 'Ayuda del Teleprompter',
     keyboardShortcuts: 'Atajos de teclado',
@@ -1041,7 +1041,7 @@ Drücken Sie die Wiedergabe-Taste, um das Scrollen zu starten.`,
     linesPerSec: 'Zeilen/Sek',
 
     toggleFullscreen: 'Vollbild umschalten',
-    helpKeyboardShortcuts: 'Hilfe & Tastenkürzel',
+    helpKeyboardShortcuts: 'Hilfe',
 
     helpTitle: 'Teleprompter-Hilfe',
     keyboardShortcuts: 'Tastenkürzel',

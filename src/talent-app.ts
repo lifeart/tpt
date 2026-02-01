@@ -69,6 +69,7 @@ class TalentApp {
 
     this.textInner = document.createElement('div');
     this.textInner.className = 'teleprompt-text-inner';
+    this.textInner.dataset.testid = 'teleprompter-text';
     textContainer.appendChild(this.textInner);
 
     this.displayElement.appendChild(textContainer);

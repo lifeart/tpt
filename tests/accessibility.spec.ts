@@ -585,8 +585,8 @@ test.describe('Accessibility - Text Sizing', () => {
     await expect(display).toBeVisible();
 
     const fontSize = await page.evaluate(() => {
-      const display = document.querySelector('[data-testid="teleprompter-display"]');
-      return display ? parseInt(getComputedStyle(display).fontSize) : 0;
+      const text = document.querySelector('[data-testid="teleprompter-text"]');
+      return text ? parseInt(getComputedStyle(text).fontSize) : 0;
     });
 
     expect(fontSize).toBe(72);
@@ -598,8 +598,8 @@ test.describe('Accessibility - Dyslexia Support', () => {
     await setupApp(page, { fontFamily: 'Lexend' }, sampleScript);
 
     const fontFamily = await page.evaluate(() => {
-      const display = document.querySelector('[data-testid="teleprompter-display"]');
-      return display ? getComputedStyle(display).fontFamily : '';
+      const text = document.querySelector('[data-testid="teleprompter-text"]');
+      return text ? getComputedStyle(text).fontFamily : '';
     });
 
     expect(fontFamily.toLowerCase()).toContain('lexend');
@@ -609,8 +609,8 @@ test.describe('Accessibility - Dyslexia Support', () => {
     await setupApp(page, { fontFamily: 'OpenDyslexic' }, sampleScript);
 
     const fontFamily = await page.evaluate(() => {
-      const display = document.querySelector('[data-testid="teleprompter-display"]');
-      return display ? getComputedStyle(display).fontFamily : '';
+      const text = document.querySelector('[data-testid="teleprompter-text"]');
+      return text ? getComputedStyle(text).fontFamily : '';
     });
 
     expect(fontFamily.toLowerCase()).toContain('opendyslexic');
@@ -620,8 +620,8 @@ test.describe('Accessibility - Dyslexia Support', () => {
     await setupApp(page, { letterSpacing: 5 }, sampleScript);
 
     const letterSpacing = await page.evaluate(() => {
-      const display = document.querySelector('[data-testid="teleprompter-display"]');
-      return display ? getComputedStyle(display).letterSpacing : '0px';
+      const text = document.querySelector('[data-testid="teleprompter-text"]');
+      return text ? getComputedStyle(text).letterSpacing : '0px';
     });
 
     expect(letterSpacing).toBe('5px');
@@ -631,8 +631,8 @@ test.describe('Accessibility - Dyslexia Support', () => {
     await setupApp(page, { lineSpacing: 2 }, sampleScript);
 
     const lineHeight = await page.evaluate(() => {
-      const display = document.querySelector('[data-testid="teleprompter-display"]');
-      const style = display ? getComputedStyle(display).lineHeight : '';
+      const text = document.querySelector('[data-testid="teleprompter-text"]');
+      const style = text ? getComputedStyle(text).lineHeight : '';
       return style;
     });
 

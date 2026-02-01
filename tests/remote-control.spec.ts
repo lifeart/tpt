@@ -320,8 +320,8 @@ test.describe('Talent Display - Basic Functionality', () => {
     await talentPage.waitForTimeout(500);
 
     const fontSize = await talentPage.evaluate(() => {
-      const display = document.querySelector('.talent-display, [data-testid="teleprompter-display"]');
-      return display ? parseInt(getComputedStyle(display).fontSize) : 0;
+      const text = document.querySelector('[data-testid="teleprompter-text"]');
+      return text ? parseInt(getComputedStyle(text).fontSize) : 0;
     });
 
     expect(fontSize).toBe(48);

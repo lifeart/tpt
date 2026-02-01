@@ -230,9 +230,14 @@ export class FloatingToolbar {
   }
 
   private cycleScrollMode() {
-    const modes: ScrollMode[] = ['continuous', 'paging', 'voice', 'rsvp'];
+    // On mobile, skip paging mode (not optimized for touch)
+    const isMobile = window.matchMedia('(max-width: 767px)').matches;
+    const modes: ScrollMode[] = isMobile
+      ? ['continuous', 'voice', 'rsvp']
+      : ['continuous', 'paging', 'voice', 'rsvp'];
     const currentIndex = modes.indexOf(this.state.scrollMode);
-    const nextIndex = (currentIndex + 1) % modes.length;
+    // If current mode is not in the list (e.g., paging on mobile), start from continuous
+    const nextIndex = currentIndex === -1 ? 0 : (currentIndex + 1) % modes.length;
     this.state.scrollMode = modes[nextIndex];
     this.state.saveSettings();
     this.updateScrollModeUI();

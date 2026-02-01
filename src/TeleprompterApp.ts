@@ -28,6 +28,7 @@ export class TeleprompterApp {
   private speedChangedHandler: (() => void) | null = null;
   private drawerOpenedHandler: (() => void) | null = null;
   private drawerClosedHandler: (() => void) | null = null;
+  private showHelpHandler: (() => void) | null = null;
   private pageChangedHandler: ((e: CustomEvent<PageChangedDetail>) => void) | null = null;
   private settingsChangedHandler: (() => void) | null = null;
   private scrollingToggledHandler: (() => void) | null = null;
@@ -352,6 +353,12 @@ export class TeleprompterApp {
       }
     };
     document.addEventListener("drawer-closed", this.drawerClosedHandler);
+
+    // Handle show-help event from settings drawer
+    this.showHelpHandler = () => {
+      this.helpModal?.show();
+    };
+    document.addEventListener("show-help", this.showHelpHandler);
 
     // Handle page changes from paging mode
     this.pageChangedHandler = (e: CustomEvent<PageChangedDetail>) => {

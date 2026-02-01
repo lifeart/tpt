@@ -486,8 +486,8 @@ test.describe('Core Teleprompter - Keyboard Shortcuts', () => {
     await page.waitForTimeout(100);
 
     const fontSize = await page.evaluate(() => {
-      const display = document.querySelector('[data-testid="teleprompter-display"]');
-      return display ? parseInt(getComputedStyle(display).fontSize) : 32;
+      const text = document.querySelector('[data-testid="teleprompter-text"]');
+      return text ? parseInt(getComputedStyle(text).fontSize) : 32;
     });
 
     expect(fontSize).toBeGreaterThan(32);

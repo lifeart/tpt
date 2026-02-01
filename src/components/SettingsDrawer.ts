@@ -43,6 +43,7 @@ export class SettingsDrawer {
   private tabButtons: HTMLButtonElement[] = [];
   private closeBtn: HTMLButtonElement | null = null;
   private resetBtn: HTMLButtonElement | null = null;
+  private helpBtn: HTMLButtonElement | null = null;
   private focusTrap: FocusTrap | null = null;
 
   constructor(
@@ -146,9 +147,9 @@ export class SettingsDrawer {
     // Bottom buttons container
     const bottomContainer = document.createElement("div");
     bottomContainer.className = "drawer-bottom-buttons";
-    bottomContainer.style.padding = "12px 16px 16px";
+    bottomContainer.style.padding = "8px 16px 12px";
     bottomContainer.style.display = "flex";
-    bottomContainer.style.gap = "12px";
+    bottomContainer.style.gap = "8px";
 
     // Reset to defaults button
     this.resetBtn = document.createElement("button");
@@ -158,6 +159,18 @@ export class SettingsDrawer {
     this.resetBtn.textContent = i18n.t('resetToDefaults');
     this.resetBtn.addEventListener("click", () => this.resetToDefaults());
     bottomContainer.appendChild(this.resetBtn);
+
+    // Help button (for mobile where toolbar help is hidden)
+    this.helpBtn = document.createElement("button");
+    this.helpBtn.className = "drawer-help-btn";
+    this.helpBtn.type = "button";
+    this.helpBtn.dataset.action = "help";
+    this.helpBtn.textContent = i18n.t('helpKeyboardShortcuts');
+    this.helpBtn.addEventListener("click", () => {
+      this.close();
+      document.dispatchEvent(new CustomEvent("show-help"));
+    });
+    bottomContainer.appendChild(this.helpBtn);
 
     // Close button
     this.closeBtn = document.createElement("button");
@@ -664,12 +677,20 @@ export class SettingsDrawer {
     this.scrollModeSelect.className = "settings-select";
     this.scrollModeSelect.dataset.testid = "scroll-mode-select";
 
-    const scrollModes: { value: ScrollMode; label: string }[] = [
-      { value: 'continuous', label: i18n.t('continuous') },
-      { value: 'paging', label: i18n.t('paging') },
-      { value: 'voice', label: i18n.t('voice') },
-      { value: 'rsvp', label: i18n.t('rsvp') },
-    ];
+    // On mobile, skip paging mode (not optimized for touch)
+    const isMobile = window.matchMedia('(max-width: 767px)').matches;
+    const scrollModes: { value: ScrollMode; label: string }[] = isMobile
+      ? [
+          { value: 'continuous', label: i18n.t('continuous') },
+          { value: 'voice', label: i18n.t('voice') },
+          { value: 'rsvp', label: i18n.t('rsvp') },
+        ]
+      : [
+          { value: 'continuous', label: i18n.t('continuous') },
+          { value: 'paging', label: i18n.t('paging') },
+          { value: 'voice', label: i18n.t('voice') },
+          { value: 'rsvp', label: i18n.t('rsvp') },
+        ];
 
     scrollModes.forEach(({ value, label }) => {
       const option = document.createElement("option");
@@ -856,6 +877,11 @@ export class SettingsDrawer {
     // Update reset button
     if (this.resetBtn) {
       this.resetBtn.textContent = i18n.t('resetToDefaults');
+    }
+
+    // Update help button
+    if (this.helpBtn) {
+      this.helpBtn.textContent = i18n.t('helpKeyboardShortcuts');
     }
 
     // Update other labels

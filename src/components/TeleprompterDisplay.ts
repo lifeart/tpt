@@ -64,6 +64,10 @@ export class TeleprompterDisplay {
   // RSVP mode
   private rsvpDisplay: RSVPDisplay | null = null;
   private rsvpSpeedChangedHandler: (() => void) | null = null;
+  // Mobile active line indicators (outside transform hierarchy)
+  private mobileIndicatorLeft: HTMLDivElement | null = null;
+  private mobileIndicatorRight: HTMLDivElement | null = null;
+  private isMobile: boolean = false;
 
   constructor(container: HTMLElement, state: TeleprompterState) {
     this.state = state;
@@ -87,6 +91,7 @@ export class TeleprompterDisplay {
     // Inner wrapper for text (receives transforms for scrolling and flip)
     this.telepromptTextInner = document.createElement("div");
     this.telepromptTextInner.className = "teleprompt-text-inner";
+    this.telepromptTextInner.dataset.testid = "teleprompter-text";
     this.telepromptTextInner.style.transition = "none"; // Will be set dynamically for smooth transitions
 
     // Append telepromptTextInner to telepromptText
@@ -119,6 +124,9 @@ export class TeleprompterDisplay {
     this.element.appendChild(this.countdownOverlay);
 
     container.appendChild(this.element);
+
+    // Setup mobile indicators
+    this.setupMobileIndicators();
 
     this.updateTelepromptText();
     this.setupKeyboardNavigation();
@@ -334,6 +342,46 @@ export class TeleprompterDisplay {
     this.element.addEventListener("touchstart", handleTouchStart, { passive: true });
     this.element.addEventListener("touchmove", handleTouchMove, { passive: false });
     this.element.addEventListener("touchend", handleTouchEnd, { passive: true });
+  }
+
+  private setupMobileIndicators() {
+    // Check if mobile (viewport width <= 768px)
+    this.isMobile = window.matchMedia('(max-width: 768px)').matches;
+
+    // Create fixed indicators that live outside the transform hierarchy
+    this.mobileIndicatorLeft = document.createElement("div");
+    this.mobileIndicatorLeft.className = "mobile-active-indicator mobile-active-indicator-left";
+    this.mobileIndicatorLeft.textContent = "◀";
+    this.mobileIndicatorLeft.setAttribute("aria-hidden", "true");
+
+    this.mobileIndicatorRight = document.createElement("div");
+    this.mobileIndicatorRight.className = "mobile-active-indicator mobile-active-indicator-right";
+    this.mobileIndicatorRight.textContent = "▶";
+    this.mobileIndicatorRight.setAttribute("aria-hidden", "true");
+
+    // Append to container (outside telepromptTextInner which has transforms)
+    this.element.appendChild(this.mobileIndicatorLeft);
+    this.element.appendChild(this.mobileIndicatorRight);
+
+    // Update visibility based on mode and viewport
+    this.updateMobileIndicators();
+
+    // Listen for viewport changes
+    const mediaQuery = window.matchMedia('(max-width: 768px)');
+    mediaQuery.addEventListener('change', (e) => {
+      this.isMobile = e.matches;
+      this.updateMobileIndicators();
+    });
+  }
+
+  private updateMobileIndicators() {
+    if (!this.mobileIndicatorLeft || !this.mobileIndicatorRight) return;
+
+    // Hide on desktop or when in RSVP mode
+    const shouldShow = this.isMobile && this.state.scrollMode !== 'rsvp';
+
+    this.mobileIndicatorLeft.style.display = shouldShow ? 'flex' : 'none';
+    this.mobileIndicatorRight.style.display = shouldShow ? 'flex' : 'none';
   }
 
   private setupKeyboardNavigation() {
@@ -1122,6 +1170,8 @@ export class TeleprompterDisplay {
         }
         // Hide RSVP mode
         this.hideRSVPMode();
+        // Update mobile indicators (show in non-RSVP modes)
+        this.updateMobileIndicators();
       } else if (this.state.scrollMode === 'voice') {
         // Stop continuous scroll if active
         this.stopContinuousScroll();
@@ -1131,6 +1181,8 @@ export class TeleprompterDisplay {
         }
         // Hide RSVP mode
         this.hideRSVPMode();
+        // Update mobile indicators (show in non-RSVP modes)
+        this.updateMobileIndicators();
       } else if (this.state.scrollMode === 'rsvp') {
         // Stop continuous scroll if active
         this.stopContinuousScroll();
@@ -1141,6 +1193,8 @@ export class TeleprompterDisplay {
         }
         // Show RSVP mode
         this.showRSVPMode();
+        // Update mobile indicators (hide in RSVP)
+        this.updateMobileIndicators();
       } else {
         // Continuous mode - stop voice if active and hide indicator
         this.stopVoiceMode();
@@ -1149,6 +1203,8 @@ export class TeleprompterDisplay {
         }
         // Hide RSVP mode
         this.hideRSVPMode();
+        // Update mobile indicators (show in non-RSVP modes)
+        this.updateMobileIndicators();
       }
     };
     document.addEventListener("scroll-mode-changed", this.scrollModeChangedHandler as EventListener);
@@ -1865,6 +1921,16 @@ export class TeleprompterDisplay {
     if (this.smoothScrollAnimationId !== null) {
       cancelAnimationFrame(this.smoothScrollAnimationId);
       this.smoothScrollAnimationId = null;
+    }
+
+    // Cleanup mobile indicators
+    if (this.mobileIndicatorLeft && this.mobileIndicatorLeft.parentNode) {
+      this.mobileIndicatorLeft.parentNode.removeChild(this.mobileIndicatorLeft);
+      this.mobileIndicatorLeft = null;
+    }
+    if (this.mobileIndicatorRight && this.mobileIndicatorRight.parentNode) {
+      this.mobileIndicatorRight.parentNode.removeChild(this.mobileIndicatorRight);
+      this.mobileIndicatorRight = null;
     }
 
     // Remove DOM element

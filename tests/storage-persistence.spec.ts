@@ -100,8 +100,8 @@ test.describe('Storage - Settings Persistence', () => {
     await page.waitForSelector('[data-testid="teleprompter-display"]', { timeout: 5000 });
 
     const fontSize = await page.evaluate(() => {
-      const display = document.querySelector('[data-testid="teleprompter-display"]');
-      return display ? parseInt(getComputedStyle(display).fontSize) : 0;
+      const text = document.querySelector('[data-testid="teleprompter-text"]');
+      return text ? parseInt(getComputedStyle(text).fontSize) : 0;
     });
 
     expect(fontSize).toBe(48);
@@ -118,16 +118,16 @@ test.describe('Storage - Settings Persistence', () => {
     await page.waitForTimeout(200);
 
     const sizeBeforeReload = await page.evaluate(() => {
-      const display = document.querySelector('[data-testid="teleprompter-display"]');
-      return display ? parseInt(getComputedStyle(display).fontSize) : 0;
+      const text = document.querySelector('[data-testid="teleprompter-text"]');
+      return text ? parseInt(getComputedStyle(text).fontSize) : 0;
     });
 
     await page.reload();
     await page.waitForSelector('[data-testid="teleprompter-display"]', { timeout: 5000 });
 
     const sizeAfterReload = await page.evaluate(() => {
-      const display = document.querySelector('[data-testid="teleprompter-display"]');
-      return display ? parseInt(getComputedStyle(display).fontSize) : 0;
+      const text = document.querySelector('[data-testid="teleprompter-text"]');
+      return text ? parseInt(getComputedStyle(text).fontSize) : 0;
     });
 
     expect(sizeAfterReload).toBe(sizeBeforeReload);
@@ -283,8 +283,8 @@ test.describe('Storage - Error Handling', () => {
 
     // Should use default font size
     const fontSize = await page.evaluate(() => {
-      const display = document.querySelector('[data-testid="teleprompter-display"]');
-      return display ? parseInt(getComputedStyle(display).fontSize) : 0;
+      const text = document.querySelector('[data-testid="teleprompter-text"]');
+      return text ? parseInt(getComputedStyle(text).fontSize) : 0;
     });
 
     expect(fontSize).toBeGreaterThan(0);
