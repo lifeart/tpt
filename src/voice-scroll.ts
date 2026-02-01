@@ -64,9 +64,9 @@ function levenshtein(a: string, b: string): number {
   return matrix[b.length][a.length];
 }
 
-// Normalize word for comparison
+// Normalize word for comparison (supports Unicode letters and numbers)
 function normalizeWord(word: string): string {
-  return word.toLowerCase().replace(/[^a-z0-9]/g, '');
+  return word.toLowerCase().replace(/[^\p{L}\p{N}]/gu, '');
 }
 
 // Type declarations for Web Speech API
